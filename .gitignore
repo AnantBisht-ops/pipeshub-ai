@@ -6,6 +6,11 @@ __pycache__/
 # C extensions
 *.so
 
+.env
+.env.production
+*.pem
+deployment/docker-compose/.env
+
 # Distribution / packaging
 .Python
 build/
@@ -178,4 +183,12 @@ image_*.png
 *.log
 
 
+
 .cursorignore
+
+# OAuth tokens and credentials
+token.pickle
+*.pickle
+
+# Temporary logs
+deployment/docker-compose/logs.txt

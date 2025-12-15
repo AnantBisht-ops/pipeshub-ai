@@ -48,30 +48,6 @@ export default function Page() {
     setOpen(true);
   }, []);
 
-  useEffect(() => {
-    const checkOrgExists = async () => {
-      try {
-        const response = await OrgExists();
-        if (response.exists === false) {
-          setSnackbar({
-            open: true,
-            message: `Set up account to continue`,
-            severity: 'warning',
-          });
-          navigate('/auth/sign-up');
-        } else {
-          navigate('/auth/sign-in');
-          setOpen(false);
-        }
-      } catch (err) {
-        console.error('Error checking if organization exists:', err);
-      }
-    };
-
-    checkOrgExists();
-    // eslint-disable-next-line
-  }, []);
-
   const handleClose = () => {
     // Don't allow closing without selection
   };

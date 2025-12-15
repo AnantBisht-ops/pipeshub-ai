@@ -32,7 +32,9 @@ import Typography from '@mui/material/Typography';
 import LoadingButton from '@mui/lab/LoadingButton';
 import CardContent from '@mui/material/CardContent';
 import InputAdornment from '@mui/material/InputAdornment';
-import { Tab, Tabs, Fade, Grow, useTheme, Snackbar } from '@mui/material';
+import { Tab, Tabs, Fade, Grow, useTheme, Snackbar, Link } from '@mui/material';
+import { RouterLink } from 'src/routes/components';
+import { paths } from 'src/routes/paths';
 
 import { ErrorType, withErrorHandling } from 'src/utils/axios';
 
@@ -548,6 +550,16 @@ export const AuthenticationView = () => {
               >
                 Continue
               </LoadingButton>
+
+              <Stack direction="row" spacing={0.5} justifyContent="center" sx={{ mt: 3 }}>
+                <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                  Don’t have an account?
+                </Typography>
+
+                <Link component={RouterLink} href={paths.auth.jwt.signUp} variant="subtitle2">
+                  Sign up
+                </Link>
+              </Stack>
             </form>
           </CardContent>
         </Card>

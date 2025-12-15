@@ -123,6 +123,33 @@ class ConfigurationService:
                     "grpcPort": int(os.getenv("QDRANT_GRPC_PORT", "6333")),
                     "apiKey": os.getenv("QDRANT_API_KEY", "qdrant")
                 }
+        elif key == config_node_constants.AI_MODELS.value:
+            # OpenAI configuration fallback
+            openai_api_key = os.getenv("OPENAI_API_KEY")
+            if openai_api_key:
+                return {
+                    "llm": [
+                        {
+                            "provider": "openAI", 
+                            "configuration": {
+                                "apiKey": openai_api_key,
+                                "model": "gpt-4o", 
+                                "organizationId": None
+                            },
+                            "isDefault": True
+                        }
+                    ],
+                    "embedding": [
+                        {
+                            "provider": "openAI", 
+                             "configuration": {
+                                "apiKey": openai_api_key,
+                                "model": "text-embedding-3-small"
+                             },
+                             "isDefault": True
+                        }
+                    ]
+                }
         return None
 
     def _start_watch(self) -> None:

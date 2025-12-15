@@ -273,30 +273,6 @@ export const AccountSetupForm: React.FC<AccountSetupFormProps> = ({ accountType 
     severity: 'success' as 'success' | 'error' | 'warning',
   });
 
-  useEffect(() => {
-    const checkOrgExists = async () => {
-      try {
-        const response = await OrgExists();
-        if (response.exists === false) {
-          setSnackbar({
-            open: true,
-            message: `Set up account to continue`,
-            severity: 'warning',
-          });
-          navigate('/auth/sign-up');
-        } else {
-          navigate('/auth/sign-in');
-        }
-      } catch (err) {
-        console.error('Error checking if organization exists:', err);
-        // Default to false if there's an error
-      }
-    };
-
-    checkOrgExists();
-    // eslint-disable-next-line
-  }, []);
-
   const onSubmit = async (data: any) => {
     try {
       // Add accountType to the data being sent to the API

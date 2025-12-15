@@ -257,7 +257,8 @@ while true; do
 done
 EOF
 
-RUN chmod +x /app/process_monitor.sh
+RUN apt-get update && apt-get install -y dos2unix && rm -rf /var/lib/apt/lists/*
+RUN dos2unix /app/process_monitor.sh && chmod +x /app/process_monitor.sh
 
 # Expose necessary ports
 EXPOSE 3000 8000 8088 8091 8081
