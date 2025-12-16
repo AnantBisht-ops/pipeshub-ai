@@ -12,7 +12,7 @@ export class IamService {
   constructor(
     @inject('AppConfig') private authConfig: AppConfig,
     @inject('Logger') private logger: Logger,
-  ) {}
+  ) { }
   async createOrg(orgData: any, authServiceToken: string) {
     try {
       const config = {
@@ -42,6 +42,7 @@ export class IamService {
           error.response,
         );
       }
+      if (error instanceof NotFoundError) throw error;
       throw new InternalServerError(
         error instanceof Error ? error.message : 'Unexpected error occurred',
       );
@@ -75,6 +76,7 @@ export class IamService {
           error.response,
         );
       }
+      if (error instanceof NotFoundError) throw error;
       throw new InternalServerError(
         error instanceof Error ? error.message : 'Unexpected error occurred',
       );
@@ -113,6 +115,7 @@ export class IamService {
           error.response,
         );
       }
+      if (error instanceof NotFoundError) throw error;
       throw new InternalServerError(
         error instanceof Error ? error.message : 'Unexpected error occurred',
       );
@@ -147,6 +150,7 @@ export class IamService {
           error.response,
         );
       }
+      if (error instanceof NotFoundError) throw error;
       throw new InternalServerError(
         error instanceof Error ? error.message : 'Unexpected error occurred',
       );
@@ -182,6 +186,7 @@ export class IamService {
           error.response,
         );
       }
+      if (error instanceof NotFoundError) throw error;
       throw new InternalServerError(
         error instanceof Error ? error.message : 'Unexpected error occurred',
       );
@@ -213,6 +218,7 @@ export class IamService {
           error.response,
         );
       }
+      if (error instanceof NotFoundError) throw error;
       throw new InternalServerError(
         error instanceof Error ? error.message : 'Unexpected error occurred',
       );

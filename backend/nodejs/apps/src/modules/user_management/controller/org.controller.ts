@@ -19,6 +19,7 @@ import { passwordValidator } from '../../auth/utils/passwordValidator';
 import { SALT_ROUNDS } from '../../auth/controller/userAccount.controller';
 import {
   BadRequestError,
+  ConflictError,
   InternalServerError,
   NotFoundError,
 } from '../../../libs/errors/http.errors';
@@ -47,7 +48,7 @@ export class OrgController {
     @inject('Logger') private logger: Logger,
     @inject('EntitiesEventProducer')
     private eventService: EntitiesEventProducer,
-  ) {}
+  ) { }
 
   getDomainFromEmail(email: string) {
     const parts = email.split('@');
@@ -89,7 +90,7 @@ export class OrgController {
 
       const count = await Org.countDocuments();
       if (count > 0) {
-        throw new BadRequestError('There is already an organization');
+        throw new ConflictError('There is already an organization');
       }
       const domain = this.getDomainFromEmail(contactEmail);
       if (!domain) {

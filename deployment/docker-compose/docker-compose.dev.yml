@@ -63,10 +63,14 @@ services:
       - REDIS_URL=redis://:${REDIS_PASSWORD:-}@redis:6379
 
       # MongoDB config
-      - MONGO_URI=${MONGO_URI}
-      - MONGO_DB_NAME=es
+      - MONGO_URI=mongodb+srv://anant_db_user:a8wOuOyTig8JXsYh@demo-pipeshub.tzmr7dq.mongodb.net/?appName=demo-pipeshub
+      - MONGO_DB_NAME=${MONGO_DB_NAME}
 
       # Qdrant config
+      - QDRANT_API_KEY=${QDRANT_API_KEY}
+      - QDRANT_HOST=${QDRANT_HOST}
+      - QDRANT_PORT=${QDRANT_PORT:-6333}
+      - QDRANT_GRPC_PORT=${QDRANT_GRPC_PORT:-6334}
 
       - OLLAMA_API_URL=http://host.docker.internal:11434
 
@@ -183,7 +187,16 @@ services:
       - "6333:6333"
       - "6334:6334"
     environment:
+      - QDRANT__SERVICE__API_KEY=${QDRANT_API_KEY:-your_qdrant_secret_api_key}
       # Performance optimizations
+      - QDRANT__SERVICE__MAX_REQUEST_SIZE_MB=64
+      - QDRANT__SERVICE__GRPC_PORT=6334
+      - QDRANT__SERVICE__HTTP_PORT=6333
+      - QDRANT__STORAGE__PERFORMANCE__MAX_SEARCH_THREADS=0 # Use all available CPUs
+      - QDRANT__STORAGE__OPTIMIZERS__DEFAULT_SEGMENT_NUMBER=8
+      - QDRANT__STORAGE__OPTIMIZERS__MEMMAP_THRESHOLD=50000
+      - QDRANT__STORAGE__WAL__WAL_CAPACITY_MB=256
+      - QDRANT__CLUSTER__CONSENSUS__MAX_MESSAGE_QUEUE_SIZE=1000
     volumes:
       - qdrant_storage:/qdrant/storage
     # deploy:
@@ -223,7 +236,3 @@ volumes:
     driver: local
   pipeshub_root_local:
     driver: local
-      - QDRANT_API_KEY=\
-      - QDRANT_HOST=\
-      - QDRANT_PORT=\
-      - QDRANT_GRPC_PORT=\
