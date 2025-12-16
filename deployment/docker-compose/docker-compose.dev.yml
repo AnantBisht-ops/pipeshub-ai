@@ -63,14 +63,10 @@ services:
       - REDIS_URL=redis://:${REDIS_PASSWORD:-}@redis:6379
 
       # MongoDB config
-      - MONGO_URI=mongodb://${MONGO_USERNAME:-admin}:${MONGO_PASSWORD:-password}@mongodb:27017/?authSource=admin
+      - MONGO_URI=${MONGO_URI}
       - MONGO_DB_NAME=es
 
       # Qdrant config
-      - QDRANT_API_KEY=${QDRANT_API_KEY:-your_qdrant_secret_api_key}
-      - QDRANT_HOST=qdrant
-      - QDRANT_GRPC_PORT=6334
-      - QDRANT_PORT=6333
 
       - OLLAMA_API_URL=http://host.docker.internal:11434
 
@@ -106,7 +102,7 @@ services:
     volumes:
       - mongodb_data:/data/db
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      test: [ "CMD", "mongosh", "--eval", "db.adminCommand('ping')" ]
       interval: 5s
       timeout: 3s
       retries: 5
@@ -133,7 +129,7 @@ services:
     volumes:
       - arango_data:/var/lib/arangodb3
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8529/_api/version"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8529/_api/version" ]
       interval: 5s
       timeout: 3s
       retries: 5
@@ -145,14 +141,7 @@ services:
       - "2379:2379"
       - "2380:2380"
     command: >
-      etcd
-      --name etcd-node
-      --data-dir /etcd-data
-      --listen-client-urls http://0.0.0.0:2379
-      --advertise-client-urls http://0.0.0.0:2379
-      --listen-peer-urls http://0.0.0.0:2380
-      --initial-advertise-peer-urls http://0.0.0.0:2380
-      --initial-cluster etcd-node=http://0.0.0.0:2380
+      etcd --name etcd-node --data-dir /etcd-data --listen-client-urls http://0.0.0.0:2379 --advertise-client-urls http://0.0.0.0:2379 --listen-peer-urls http://0.0.0.0:2380 --initial-advertise-peer-urls http://0.0.0.0:2380 --initial-cluster etcd-node=http://0.0.0.0:2380
     volumes:
       - etcd_data:/etcd-data
 
@@ -194,26 +183,17 @@ services:
       - "6333:6333"
       - "6334:6334"
     environment:
-      - QDRANT__SERVICE__API_KEY=${QDRANT_API_KEY:-your_qdrant_secret_api_key}
       # Performance optimizations
-      - QDRANT__SERVICE__MAX_REQUEST_SIZE_MB=64
-      - QDRANT__SERVICE__GRPC_PORT=6334
-      - QDRANT__SERVICE__HTTP_PORT=6333
-      - QDRANT__STORAGE__PERFORMANCE__MAX_SEARCH_THREADS=0 # Use all available CPUs
-      - QDRANT__STORAGE__OPTIMIZERS__DEFAULT_SEGMENT_NUMBER=8
-      - QDRANT__STORAGE__OPTIMIZERS__MEMMAP_THRESHOLD=50000
-      - QDRANT__STORAGE__WAL__WAL_CAPACITY_MB=256
-      - QDRANT__CLUSTER__CONSENSUS__MAX_MESSAGE_QUEUE_SIZE=1000
     volumes:
       - qdrant_storage:/qdrant/storage
-    deploy:
-      resources:
-        limits:
-          cpus: "4"
-          memory: 4G
-        reservations:
-          cpus: "2"
-          memory: 2G
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: "4"
+    #       memory: 4G
+    #     reservations:
+    #       cpus: "2"
+    #       memory: 2G
     ulimits:
       nofile:
         soft: 50000
@@ -243,3 +223,7 @@ volumes:
     driver: local
   pipeshub_root_local:
     driver: local
+      - QDRANT_API_KEY=\
+      - QDRANT_HOST=\
+      - QDRANT_PORT=\
+      - QDRANT_GRPC_PORT=\

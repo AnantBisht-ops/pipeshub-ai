@@ -221,9 +221,11 @@ export class Application {
     ].filter(Boolean);
 
     this.app.use(helmet({
+      hsts: false,
       crossOriginOpenerPolicy: { policy: "unsafe-none" }, // Required for MSAL popup
       contentSecurityPolicy: {
         directives: {
+          upgradeInsecureRequests: null,
           defaultSrc: ["'self'"],
           scriptSrc: [
             "'self'",
@@ -419,7 +421,7 @@ export class Application {
       //  migrate ai models configurations
       this.logger.info('Migrating ai models configurations');
       await this.configurationManagerContainer.get(MigrationService).runMigration();
-      this.logger.info('✅ Ai models configurations migrated');
+      this.logger.info('??? Ai models configurations migrated');
 
       this.logger.info('Migration completed successfully');
     } catch (error) {
