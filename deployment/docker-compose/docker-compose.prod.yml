@@ -9,10 +9,14 @@ services:
       - "3000:3000"
       - "8001:8000"
       - "8081:8081"
-    deploy:
-      resources:
-        limits:
-          memory: 10G
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: '4'
+    #       memory: 4G
+    #     reservations:
+    #       cpus: '2'
+    #       memory: 2G
     shm_size: 2gb
     init: true
     environment:
@@ -62,6 +66,8 @@ services:
       - QDRANT_HOST=qdrant
       - QDRANT_GRPC_PORT=6334
       - QDRANT_PORT=6333
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+
 
       - OLLAMA_API_URL=http://host.docker.internal:11434
     depends_on:
@@ -76,7 +82,7 @@ services:
       etcd:
         condition: service_healthy
       arango:
-        condition: service_healthy
+        condition: service_started
     volumes:
       - pipeshub_data:/data/pipeshub
       - pipeshub_root_local:/root/.local
