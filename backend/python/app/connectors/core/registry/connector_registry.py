@@ -422,14 +422,18 @@ class ConnectorRegistry:
 
         # Runtime filter based on feature flag
         try:
-            feature_flag_service = await self.container.feature_flag_service()
-            # Ensure we have the latest values
-            try:
-                await feature_flag_service.refresh()
-            except Exception as e:
-                self.logger.debug(f"Feature flag refresh failed: {e}")
-            from app.services.featureflag.config.config import CONFIG
-            beta_enabled = feature_flag_service.is_feature_enabled(CONFIG.ENABLE_BETA_CONNECTORS)
+            # FORCE ENABLE BETA CONNECTORS
+            beta_enabled = True
+            
+            # feature_flag_service = await self.container.feature_flag_service()
+            # # Ensure we have the latest values
+            # try:
+            #     await feature_flag_service.refresh()
+            # except Exception as e:
+            #     self.logger.debug(f"Feature flag refresh failed: {e}")
+            # from app.services.featureflag.config.config import CONFIG
+            # beta_enabled = feature_flag_service.is_feature_enabled(CONFIG.ENABLE_BETA_CONNECTORS)
+            
             if not beta_enabled:
                 # Lazy import to avoid circular dependency
                 from app.connectors.core.factory.connector_factory import (
