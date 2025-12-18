@@ -191,6 +191,9 @@ class SlackClient(IClient):
             if not token:
                 raise ValueError("Slack token not found in configuration (checked manual auth and OAuth credentials)")
 
+            # Log the token prefix to verify which one is being used
+            logger.info(f"🔑 SlackClient using token starting with: {token[:25]}...")
+
             # Create client with the found token
             client = SlackRESTClientViaToken(token)
 
