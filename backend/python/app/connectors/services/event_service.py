@@ -122,8 +122,17 @@ class EventService:
 
             connector = self._get_connector(connector_name_normalized)
             if not connector:
-                self.logger.error(f"{connector_name.capitalize()} connector not initialized")
-                return False
+                self.logger.info(f"{connector_name.capitalize()} connector not initialized, attempting to initialize now...")
+                init_success = await self._handle_init(connector_name, payload)
+                if not init_success:
+                    self.logger.error(f"Failed to lazy-initialize {connector_name.capitalize()} connector")
+                    return False
+                
+                # Retrieve it again after initialization
+                connector = self._get_connector(connector_name_normalized)
+                if not connector:
+                    self.logger.error(f"{connector_name.capitalize()} connector still not found after initialization")
+                    return False
 
             asyncio.create_task(connector.run_sync())
             self.logger.info(f"Started sync for {connector_name} connector")

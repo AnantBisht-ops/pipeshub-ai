@@ -453,7 +453,9 @@ export const AuthenticationView = () => {
           // });
           navigate('/auth/sign-up');
         } else {
-          navigate('/auth/sign-in');
+          // Auto-redirect disabled to allow manual sign-up if needed
+          // navigate('/auth/sign-in');
+          console.log("Org exists, ready for sign-in");
         }
       } catch (err) {
         console.error('Error checking if organization exists:', err);

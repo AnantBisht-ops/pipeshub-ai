@@ -38,6 +38,7 @@ from app.connectors.sources.servicenow.servicenow.connector import (
     ServiceNowConnector,
 )
 from app.connectors.sources.web.connector import WebConnector
+from app.connectors.sources.slack.connector import SlackConnector as RealSlackConnector
 
 
 class ConnectorFactory:
@@ -60,8 +61,9 @@ class ConnectorFactory:
     # Beta connector definitions - single source of truth
     # Maps registry key to connector class
     _beta_connector_definitions: Dict[str, Type[BaseConnector]] = {
-        'slack': SlackConnector,
+        'slack': RealSlackConnector,
         'calendar': CalendarConnector,
+
         'meet': MeetConnector,
         'forms': FormsConnector,
         'slides': SlidesConnector,
@@ -102,7 +104,13 @@ class ConnectorFactory:
     @classmethod
     def get_connector_class(cls, name: str) -> Optional[Type[BaseConnector]]:
         """Get connector class by name"""
-        return cls._connector_registry.get(name.lower())
+        # Check main registry first
+        connector_class = cls._connector_registry.get(name.lower())
+        if connector_class:
+            return connector_class
+            
+        # Fallback to beta registry
+        return cls._beta_connector_definitions.get(name.lower())
 
     @classmethod
     def list_connectors(cls) -> Dict[str, Type[BaseConnector]]:

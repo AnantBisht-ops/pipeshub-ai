@@ -92,7 +92,7 @@ const ConnectorCard = ({ connector }: ConnectorCardProps) => {
   const actionConfig = getActionConfig();
 
   const configureConnector = () => {
-    if (!connector.isConfigured) {
+    if (!connector.isConfigured && !connector.isActive) {
       setIsConfigFormOpen(true);
       return;
     }
