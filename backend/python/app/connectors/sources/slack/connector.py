@@ -114,6 +114,7 @@ class SlackConnector(BaseConnector):
 
         try:
              # Sync Channels
+             self.logger.info("Fetching Slack channels...")
              response = await self.slack_data_source.conversations_list()
              
              if not response.success:
@@ -123,23 +124,48 @@ class SlackConnector(BaseConnector):
              channels = response.data.get('channels', [])
              self.logger.info(f"Found {len(channels)} channels to sync")
              
-             # Mock ingestion to satisfy "Indexing" count increase
+             # Import Record types
              from app.models.entities import Record, RecordType, RecordGroupType, OriginTypes
              from app.config.constants.arangodb import Connectors, MimeTypes
              import uuid
              from app.utils.time_conversion import get_epoch_timestamp_in_ms
              
+             # Create a SlackChannelRecord class with proper to_kafka_record implementation
+             class SlackChannelRecord(Record):
+                 def to_kafka_record(self):
+                     return {
+                         "recordId": self.id,
+                         "orgId": self.org_id,
+                         "recordName": self.record_name,
+                         "recordType": self.record_type.value,
+                         "externalRecordId": self.external_record_id,
+                         "version": self.version,
+                         "origin": self.origin.value,
+                         "connectorName": self.connector_name.value,
+                         "mimeType": self.mime_type,
+                         "webUrl": self.weburl,
+                         "createdAtTimestamp": self.created_at,
+                         "updatedAtTimestamp": self.updated_at,
+                         "sourceCreatedAtTimestamp": self.source_created_at,
+                         "sourceLastModifiedTimestamp": self.source_updated_at,
+                         "externalGroupId": self.external_record_group_id,
+                     }
+             
              records = []
              for channel in channels:
                  channel_id = channel.get('id')
+                 channel_name = channel.get('name', 'Unknown')
+                 
                  if not channel_id:  # Skip channels without IDs
-                     self.logger.warning(f"Skipping channel without ID: {channel.get('name', 'Unknown')}")
+                     self.logger.warning(f"Skipping channel without ID: {channel_name}")
                      continue
-                     
-                 record = Record(
+                 
+                 self.logger.debug(f"Processing channel: {channel_name} (ID: {channel_id})")
+                 
+                 record = SlackChannelRecord(
                      id=str(uuid.uuid4()),
                      org_id=self.data_entities_processor.org_id,  # Critical: must have org_id
-                     record_name=channel.get('name', 'Unknown'),
+                     record_name=channel_name,
                      record_type=RecordType.OTHERS, # Best fit for a generic container/channel
                      record_group_type=RecordGroupType.SLACK_CHANNEL, 
                      origin=OriginTypes.CONNECTOR,
@@ -151,16 +177,21 @@ class SlackConnector(BaseConnector):
                      external_record_group_id=channel_id,  # Each channel is its own group
                      source_created_at=channel.get('created', 0) * 1000,
                      mime_type=MimeTypes.FOLDER.value, # Treat as a folder-like container
-                     is_container=True 
+                     weburl=f"https://slack.com/app_redirect?channel={channel_id}",
                  )
                  records.append(record)
                  
+             self.logger.info(f"Created {len(records)} record objects")
+             
              if records:
                  # on_new_records expects List[Tuple[Record, List[Permission]]]
                  # For public channels, we can pass empty permissions for now
+                 self.logger.info(f"Sending {len(records)} records to data processor...")
                  records_with_permissions = [(record, []) for record in records]
                  await self.data_entities_processor.on_new_records(records_with_permissions)
-                 self.logger.info(f"Ingested {len(records)} channel records")
+                 self.logger.info(f"✅ Successfully ingested {len(records)} Slack channel records")
+             else:
+                 self.logger.warning("No channels to sync")
 
         except Exception as e:
              self.logger.error(f"Error during Slack sync: {e}")
