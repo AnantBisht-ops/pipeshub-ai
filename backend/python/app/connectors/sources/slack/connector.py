@@ -152,6 +152,11 @@ class SlackConnector(BaseConnector):
                      }
              
              records = []
+             
+             # CRITICAL DEBUG LOGGING
+             org_id_used = self.data_entities_processor.org_id
+             self.logger.info(f"🔍 DEBUG: Creating records with org_id={org_id_used}")
+             
              for channel in channels:
                  channel_id = channel.get('id')
                  channel_name = channel.get('name', 'Unknown')
@@ -183,6 +188,11 @@ class SlackConnector(BaseConnector):
                  records.append(record)
                  
              self.logger.info(f"Created {len(records)} record objects")
+             
+             # DEBUG: Log first record details
+             if records:
+                 first_rec = records[0]
+                 self.logger.info(f"🔍 DEBUG First record: id={first_rec.id}, org_id={first_rec.org_id}, type={first_rec.record_type.value}, connector={first_rec.connector_name.value}, status={first_rec.indexing_status}")
              
              if records:
                  # on_new_records expects List[Tuple[Record, List[Permission]]]
