@@ -149,7 +149,10 @@ class SlackConnector(BaseConnector):
                  records.append(record)
                  
              if records:
-                 await self.data_entities_processor.on_new_records(records)
+                 # on_new_records expects List[Tuple[Record, List[Permission]]]
+                 # For public channels, we can pass empty permissions for now
+                 records_with_permissions = [(record, []) for record in records]
+                 await self.data_entities_processor.on_new_records(records_with_permissions)
                  self.logger.info(f"Ingested {len(records)} channel records")
 
         except Exception as e:
