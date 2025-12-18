@@ -166,7 +166,7 @@ class SlackConnector(BaseConnector):
                      id=str(uuid.uuid4()),
                      org_id=self.data_entities_processor.org_id,  # Critical: must have org_id
                      record_name=channel_name,
-                     record_type=RecordType.OTHERS, # Best fit for a generic container/channel
+                     record_type=RecordType.MESSAGE, # ⭐ CRITICAL: OTHERS is unsupported, use MESSAGE for Slack channels
                      record_group_type=RecordGroupType.SLACK_CHANNEL, 
                      origin=OriginTypes.CONNECTOR,
                      connector_name=Connectors.SLACK,
