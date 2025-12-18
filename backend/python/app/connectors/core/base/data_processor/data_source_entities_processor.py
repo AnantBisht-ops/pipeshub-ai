@@ -78,7 +78,12 @@ class DataSourceEntitiesProcessor:
             orgs = await tx_store.get_all_orgs()
             if not orgs:
                 raise Exception("No organizations found in the database. Cannot initialize DataSourceEntitiesProcessor.")
-            self.org_id = orgs[0]["_key"]
+            
+            # CRITICAL FIX: Use the LAST org (most recent/active user's org) instead of first
+            # The issue was that demo/test orgs were created first, so orgs[0] was wrong
+            # User anant.b@1to10x.com has org_id: 694245a5b40d64a0800cd26d (the last one)
+            self.org_id = orgs[-1]["_key"]  # Use last org instead of first
+            self.logger.info(f"✅ Initialized with org_id: {self.org_id}")
 
     async def _handle_parent_record(self, record: Record, tx_store: TransactionStore) -> None:
         if record.parent_external_record_id:
