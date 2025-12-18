@@ -67,6 +67,7 @@ class SlackConnector(BaseConnector):
             config = await self.config_service.get_config(config_path)
             
             # Fallback to global config if needed (though usually org-specific)
+            # Retrieve config to ensure it exists
             if not config:
                 config = await self.config_service.get_config("/services/connectors/slack/config")
                 
@@ -74,17 +75,8 @@ class SlackConnector(BaseConnector):
                 self.logger.error("Slack config not found")
                 return False
                 
-            # If using build_from_services, it likely re-reads config. 
-            # But let's try to verify token presence first.
-            auth = config.get("auth", {})
-            bot_token = auth.get("botToken") # Matches the AuthField name above
-            
-            if not bot_token:
-                 self.logger.error("Slack bot token not found in config")
-                 # It might be under 'values' if structure requires it, but let's assume flat for now or check builder.
-                 # ConnectorBuilder structure: config -> auth -> values -> botToken usually? 
-                 # But get_config returns what ever is stored.
-                 # Let's proceed.
+            # Token validation is now handled inside SlackClient.build_from_services
+            # to support both OAuth credentials and manual config
 
             # We need to construct SlackClient.
             # Assuming build_from_services uses the same ConfigService to find the token.
