@@ -179,17 +179,17 @@ class SlackClient(IClient):
             if not config:
                 raise ValueError("Failed to get Slack connector configuration")
 
-            # Try to get token from OAuth credentials first
-            credentials = config.get("credentials", {})
-            token = credentials.get("access_token")
+            # Try to get token from manual auth config first (User's manual override)
+            auth = config.get("auth", {})
+            token = auth.get("botToken")
             
-            # If no OAuth token, try manual auth config
+            # If no manual token, try OAuth credentials
             if not token:
-                auth = config.get("auth", {})
-                token = auth.get("botToken")
+                credentials = config.get("credentials", {})
+                token = credentials.get("access_token")
 
             if not token:
-                raise ValueError("Slack token not found in configuration (checked OAuth credentials and manual auth)")
+                raise ValueError("Slack token not found in configuration (checked manual auth and OAuth credentials)")
 
             # Create client with the found token
             client = SlackRESTClientViaToken(token)
