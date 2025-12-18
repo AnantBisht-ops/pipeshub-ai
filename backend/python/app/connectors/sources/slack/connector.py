@@ -131,8 +131,14 @@ class SlackConnector(BaseConnector):
              
              records = []
              for channel in channels:
+                 channel_id = channel.get('id')
+                 if not channel_id:  # Skip channels without IDs
+                     self.logger.warning(f"Skipping channel without ID: {channel.get('name', 'Unknown')}")
+                     continue
+                     
                  record = Record(
                      id=str(uuid.uuid4()),
+                     org_id=self.data_entities_processor.org_id,  # Critical: must have org_id
                      record_name=channel.get('name', 'Unknown'),
                      record_type=RecordType.OTHERS, # Best fit for a generic container/channel
                      record_group_type=RecordGroupType.SLACK_CHANNEL, 
@@ -141,7 +147,7 @@ class SlackConnector(BaseConnector):
                      version=1,
                      created_at=get_epoch_timestamp_in_ms(),
                      updated_at=get_epoch_timestamp_in_ms(),
-                     external_record_id=channel.get('id'),
+                     external_record_id=channel_id,  # Guaranteed to be non-None
                      source_created_at=channel.get('created', 0) * 1000,
                      mime_type=MimeTypes.FOLDER.value, # Treat as a folder-like container
                      is_container=True 
