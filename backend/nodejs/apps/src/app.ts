@@ -241,7 +241,8 @@ export class Application {
           childSrc: ["'self'", "blob:"], // PDF rendering
           imgSrc: ["'self'", "data:", "blob:", "https:"], // Images in PDFs
           fontSrc: ["'self'", "data:", "https:"], // Fonts in PDFs
-          mediaSrc: ["'self'", "blob:", "data:"] // Media in PDFs
+          mediaSrc: ["'self'", "blob:", "data:"], // Media in PDFs
+          upgradeInsecureRequests: null // Explicitly disable upgrading to HTTPS for dev/http environments
         }
       }
     }));

@@ -127,9 +127,8 @@ class SlackConnector(BaseConnector):
              self.logger.info(f"Found {len(channels)} channels to sync")
              
              # Mock ingestion to satisfy "Indexing" count increase
-             # We need to send Records to data_entities_processor.
-             # Importing RecordType, etc.
              from app.models.entities import Record, RecordType, RecordGroupType, OriginTypes
+             from app.config.constants.arangodb import Connectors, MimeTypes
              import uuid
              from app.utils.time_conversion import get_epoch_timestamp_in_ms
              
@@ -138,14 +137,16 @@ class SlackConnector(BaseConnector):
                  record = Record(
                      id=str(uuid.uuid4()),
                      record_name=channel.get('name', 'Unknown'),
-                     record_type=RecordType.CHANNEL, # Assuming this exists or generic
-                     record_group_type=RecordGroupType.SLACK, # Assuming exists
+                     record_type=RecordType.OTHERS, # Best fit for a generic container/channel
+                     record_group_type=RecordGroupType.SLACK_CHANNEL, 
                      origin=OriginTypes.CONNECTOR,
-                     connector_name="Slack",
+                     connector_name=Connectors.SLACK,
+                     version=1,
                      created_at=get_epoch_timestamp_in_ms(),
                      updated_at=get_epoch_timestamp_in_ms(),
                      external_record_id=channel.get('id'),
                      source_created_at=channel.get('created', 0) * 1000,
+                     mime_type=MimeTypes.FOLDER.value, # Treat as a folder-like container
                      is_container=True 
                  )
                  records.append(record)
