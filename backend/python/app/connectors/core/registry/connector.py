@@ -108,14 +108,14 @@ class GmailConnector:
 
 @ConnectorBuilder("Slack")\
     .in_group("Slack")\
-    .with_auth_type("OAUTH")\
+    .with_auth_type("API_TOKEN")\
     .with_description("Sync messages and channels from Slack")\
     .with_categories(["Messaging"])\
     .configure(lambda builder: builder
         .with_icon("/assets/icons/connectors/slack.svg")
         .add_documentation_link(DocumentationLink(
-            "Slack OAuth Setup",
-            "https://api.slack.com/authentication/oauth-v2",
+            "Slack Bot Token Setup",
+            "https://api.slack.com/authentication/basics",
             "setup"
         ))
         .add_documentation_link(DocumentationLink(
@@ -123,23 +123,16 @@ class GmailConnector:
             'https://docs.pipeshub.com/connectors/slack/slack',
             'pipeshub'
         ))
-        .with_redirect_uri("connectors/oauth/callback/Slack", True)
-        .with_oauth_urls(
-            "https://slack.com/oauth/v2/authorize",
-            "https://slack.com/api/oauth.v2.access",
-            [
-                "channels:read",
-                "channels:history", 
-                "chat:write",
-                "groups:read",
-                "im:read", 
-                "mpim:read",
-                "users:read",
-                "team:read"
-            ]
-        )
-        .add_auth_field(CommonFields.client_id("Slack App Settings"))
-        .add_auth_field(CommonFields.client_secret("Slack App Settings"))
+        .with_redirect_uri("", False)
+        .add_auth_field(AuthField(
+            name="botToken",
+            display_name="Bot Token",
+            placeholder="xoxb-...",
+            description="The Bot User OAuth Access Token from Slack App settings",
+            field_type="PASSWORD",
+            max_length=8000,
+            is_secret=True
+        ))
         .with_sync_strategies(["SCHEDULED", "MANUAL"])
         .with_scheduled_config(True, 60)
     )\
