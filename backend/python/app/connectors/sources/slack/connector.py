@@ -194,13 +194,23 @@ class SlackConnector(BaseConnector):
                  first_rec = records[0]
                  self.logger.info(f"🔍 DEBUG First record: id={first_rec.id}, org_id={first_rec.org_id}, type={first_rec.record_type.value}, connector={first_rec.connector_name.value}, status={first_rec.indexing_status}")
              
+             
              if records:
-                 # on_new_records expects List[Tuple[Record, List[Permission]]]
-                 # For public channels, we can pass empty permissions for now
-                 self.logger.info(f"Sending {len(records)} records to data processor...")
-                 records_with_permissions = [(record, []) for record in records]
+                 # Create ORG-level permissions for all Slack channels
+                 # This allows all users in the organization to search/access these channels
+                 from app.models.permission import Permission, PermissionType, EntityType
+                 
+                 org_permission = Permission(
+                     type=PermissionType.READ,
+                     entity_type=EntityType.ORG,
+                     external_id=self.data_entities_processor.org_id
+                 )
+                 
+                 # Attach ORG permission to each record
+                 self.logger.info(f"Sending {len(records)} records with ORG permissions to data processor...")
+                 records_with_permissions = [(record, [org_permission]) for record in records]
                  await self.data_entities_processor.on_new_records(records_with_permissions)
-                 self.logger.info(f"✅ Successfully ingested {len(records)} Slack channel records")
+                 self.logger.info(f"✅ Successfully ingested {len(records)} Slack channel records with ORG permissions")
              else:
                  self.logger.warning("No channels to sync")
 
