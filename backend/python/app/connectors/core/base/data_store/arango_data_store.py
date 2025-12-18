@@ -267,34 +267,47 @@ class ArangoTransactionStore(TransactionStore):
 
         try:
             for record in records:
-                # Define record type configurations
+                # Define record type configurations for types that have specific collections
                 record_type_config = {
                     RecordType(record_type_str): {"collection": collection}
                     for record_type_str, collection in RECORD_TYPE_COLLECTION_MAPPING.items()
                 }
 
-                # Get the configuration for the current record type
+                # Always upsert base record to records collection
+                await self.arango_service.batch_upsert_nodes(
+                    [record.to_arango_base_record()], 
+                    collection=CollectionNames.RECORDS.value, 
+                    transaction=self.txn
+                )
+                
+                # Check if this record type has a specific collection
                 record_type = record.record_type
-                if record_type not in record_type_config:
-                    self.logger.error(f"❌ Unsupported record type: {record_type}")
-                    continue
+                if record_type in record_type_config:
+                    config = record_type_config[record_type]
+                    
+                    # Create the IS_OF_TYPE edge
+                    is_of_type_record = {
+                        "_from": f"{CollectionNames.RECORDS.value}/{record.id}",
+                        "_to": f"{config['collection']}/{record.id}",
+                        "createdAtTimestamp": get_epoch_timestamp_in_ms(),
+                        "updatedAtTimestamp": get_epoch_timestamp_in_ms(),
+                    }
 
-                config = record_type_config[record_type]
-
-                # Create the IS_OF_TYPE edge
-                is_of_type_record = {
-                    "_from": f"{CollectionNames.RECORDS.value}/{record.id}",
-                    "_to": f"{config['collection']}/{record.id}",
-                    "createdAtTimestamp": get_epoch_timestamp_in_ms(),
-                    "updatedAtTimestamp": get_epoch_timestamp_in_ms(),
-                }
-
-                # Upsert base record
-                await self.arango_service.batch_upsert_nodes([record.to_arango_base_record()], collection=CollectionNames.RECORDS.value, transaction=self.txn)
-                # Upsert specific record type if it has a specific method
-                await self.arango_service.batch_upsert_nodes([record.to_arango_record()], collection=config["collection"], transaction=self.txn)
-                # Create IS_OF_TYPE edge
-                await self.arango_service.batch_create_edges([is_of_type_record], collection=CollectionNames.IS_OF_TYPE.value, transaction=self.txn)
+                    # Upsert specific record type
+                    await self.arango_service.batch_upsert_nodes(
+                        [record.to_arango_record()], 
+                        collection=config["collection"], 
+                        transaction=self.txn
+                    )
+                    # Create IS_OF_TYPE edge
+                    await self.arango_service.batch_create_edges(
+                        [is_of_type_record], 
+                        collection=CollectionNames.IS_OF_TYPE.value, 
+                        transaction=self.txn
+                    )
+                else:
+                    # For MESSAGE, DRIVE, and other base-only types, just log info
+                    self.logger.debug(f"Record type {record_type} stored in base records collection only (no type-specific collection)")
 
             self.logger.info(" Successfully upserted records ")
             return True
