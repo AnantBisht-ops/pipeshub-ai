@@ -113,6 +113,19 @@ class SlackConnector(BaseConnector):
                  raise Exception("Failed to initialize Slack connector")
 
         try:
+             # Verify which workspace we're connected to
+             try:
+                 web_client = self.slack_client.get_web_client()
+                 team_info = web_client.team_info()
+                 if team_info and team_info.get('ok'):
+                     team_data = team_info.get('team', {})
+                     self.logger.info(f"🔍 CONNECTED TO SLACK WORKSPACE:")
+                     self.logger.info(f"   - Team Name: {team_data.get('name')}")
+                     self.logger.info(f"   - Team ID: {team_data.get('id')}")
+                     self.logger.info(f"   - Domain: {team_data.get('domain')}")
+             except Exception as e:
+                 self.logger.warning(f"Could not fetch workspace info: {e}")
+             
              # Sync Channels
              self.logger.info("Fetching Slack channels...")
              response = await self.slack_data_source.conversations_list()
