@@ -15,15 +15,12 @@ from app.connectors.core.registry.connector_builder import (
 )
 from app.sources.external.slack.slack import SlackDataSource
 from app.sources.client.slack.slack import SlackClient
-from app.connectors.core.interfaces.connector.apps import App, AppGroup
+from app.connectors.core.interfaces.connector.apps import App
+from app.config.constants.arangodb import Connectors, AppGroups
 
 class SlackApp(App):
-    def get_app_name(self) -> str:
-        return "Slack"
-    def get_app_group(self) -> AppGroup:
-        return AppGroup(name="Slack", id="slack")
-    def get_app_group_name(self) -> str:
-        return "Slack"
+    def __init__(self) -> None:
+        super().__init__(Connectors.SLACK, AppGroups.MICROSOFT)  # Slack doesn't have its own AppGroup, using a placeholder
 
 @ConnectorBuilder("Slack")\
     .in_group("Slack")\
