@@ -125,7 +125,7 @@ class SlackConnector(BaseConnector):
              self.logger.info(f"Found {len(channels)} channels to sync")
              
              # Import Record types
-             from app.models.entities import Record, RecordType, RecordGroupType, OriginTypes
+             from app.models.entities import Record, RecordType, RecordGroupType, OriginTypes, IndexingStatus
              from app.config.constants.arangodb import Connectors, MimeTypes
              import uuid
              from app.utils.time_conversion import get_epoch_timestamp_in_ms
@@ -178,6 +178,7 @@ class SlackConnector(BaseConnector):
                      source_created_at=channel.get('created', 0) * 1000,
                      mime_type=MimeTypes.FOLDER.value, # Treat as a folder-like container
                      weburl=f"https://slack.com/app_redirect?channel={channel_id}",
+                     indexing_status=IndexingStatus.COMPLETED.value,  # ⭐ KEY FIX: Channels don't need content extraction
                  )
                  records.append(record)
                  
