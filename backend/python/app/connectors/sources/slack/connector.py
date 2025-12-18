@@ -148,6 +148,7 @@ class SlackConnector(BaseConnector):
                      created_at=get_epoch_timestamp_in_ms(),
                      updated_at=get_epoch_timestamp_in_ms(),
                      external_record_id=channel_id,  # Guaranteed to be non-None
+                     external_record_group_id=channel_id,  # Each channel is its own group
                      source_created_at=channel.get('created', 0) * 1000,
                      mime_type=MimeTypes.FOLDER.value, # Treat as a folder-like container
                      is_container=True 
