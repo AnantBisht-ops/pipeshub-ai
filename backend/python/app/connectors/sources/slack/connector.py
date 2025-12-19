@@ -259,10 +259,81 @@ class SlackConnector(BaseConnector):
                 virtual_record_id=record_id,  # CRITICAL: Set virtualRecordId for indexing
                 content=text
             )
+            
+            # Save message content to blob storage for indexing
+            try:
+                await self._save_message_to_blob_storage(
+                    org_id=self.data_entities_processor.org_id,
+                    record_id=record_id,
+                    virtual_record_id=record_id,
+                    content=text,
+                    metadata={
+                        'channel_id': channel_id,
+                        'channel_name': channel_name,
+                        'timestamp': ts,
+                        'user_id': user_id,
+                        'record_name': record_name
+                    }
+                )
+            except Exception as e:
+                self.logger.error(f"Failed to save message to blob storage: {e}")
+                # Don't fail the sync, just log the error
+            
             records.append((record, [org_permission]))
 
             
         return records
+    
+    async def _save_message_to_blob_storage(
+        self,
+        org_id: str,
+        record_id: str,
+        virtual_record_id: str,
+        content: str,
+        metadata: Dict[str, Any]
+    ) -> None:
+        """Save Slack message content to blob storage for indexing service to retrieve"""
+        try:
+            # Get blob storage from data store provider
+            blob_storage = self.data_store_provider.get_blob_storage()
+            
+            # Create document structure expected by indexing service
+            record_data = {
+                "id": virtual_record_id,
+                "virtualRecordId": virtual_record_id,
+                "recordId": record_id,
+                "content": content,
+                "metadata": metadata,
+                "blocks": [{
+                    "text": content,
+                    "type": "text",
+                    "metadata": metadata
+                }],
+                "block_containers": {
+                    "blocks": [{
+                        "text": content,
+                        "type": "text"
+                    }],
+                    "block_groups": []
+                }
+            }
+            
+            # Save to blob storage
+            document_id = await blob_storage.save_record_to_storage(
+                org_id=org_id,
+                record_id=record_id,
+                virtual_record_id=virtual_record_id,
+                record=record_data
+            )
+            
+            if document_id:
+                self.logger.info(f"✅ Saved Slack message {virtual_record_id} to blob storage (doc_id: {document_id})")
+            else:
+                self.logger.warning(f"⚠️  Blob storage save returned no document_id for {virtual_record_id}")
+                
+        except Exception as e:
+            self.logger.error(f"❌ Failed to save message to blob storage: {e}")
+            raise
 
     @classmethod
     async def create_connector(cls, logger: Logger,
