@@ -202,6 +202,16 @@ export class ConnectionStateManager {
 
         // Redirect to OAuth
         window.location.href = response.auth_url;
+      } else if (response.status === 'already_connected') {
+        // Already connected - mark as connected and refresh
+        console.log(`[Connection State] ${provider} is already connected`);
+        this.setState(provider, ConnectionState.CONNECTED);
+
+        // Refresh integrations to get the latest status
+        await this.refreshIntegrations();
+
+        // Clean up
+        localStorage.removeItem('mcp_connecting_provider');
       }
     } catch (error: any) {
       const mcpError = mcpErrorHandler.handleError(error, `Connect ${provider}`);

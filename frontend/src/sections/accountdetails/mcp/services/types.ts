@@ -28,8 +28,9 @@ export interface McpIntegration {
  * Response from the /api/integrations/connect endpoint
  */
 export interface McpConnectResponse {
-  auth_url: string;
+  auth_url: string | null;
   message: string;
+  status?: string; // 'already_connected' when already connected
 }
 
 /**

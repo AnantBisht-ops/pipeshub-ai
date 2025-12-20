@@ -26,8 +26,10 @@ export interface McpIntegrationsResponse {
 }
 
 export interface McpConnectResponse {
-  auth_url: string;
+  auth_url: string | null;
   state?: string;
+  message?: string;
+  status?: string;
 }
 
 export interface McpHealthResponse {
@@ -92,7 +94,7 @@ export class McpIntegrationService {
 
   /**
    * Get connected integrations for a user
-   * GET /api/integrations
+   * GET /api/integrations/connected
    * Note: MCP service uses user_id, not JWT authentication
    */
   async getConnectedIntegrations(userId: string): Promise<McpIntegrationsResponse> {
@@ -100,7 +102,7 @@ export class McpIntegrationService {
       console.log(`[MCP Integration] Getting integrations for user: ${userId}`);
 
       const response = await this.axiosInstance.get<McpIntegrationsResponse>(
-        '/api/integrations',
+        '/api/integrations/connected',
         {
           params: {
             user_id: userId
@@ -146,6 +148,7 @@ export class McpIntegrationService {
     try {
       console.log(`[MCP Integration] Connecting ${provider} for user: ${userId}`);
       console.log(`[MCP Integration] Redirect URI: ${redirectUri}`);
+      console.log(`[MCP Integration] Force reauth: ${forceReauth}`);
 
       const response = await this.axiosInstance.post<McpConnectResponse>(
         '/api/integrations/connect',
@@ -162,25 +165,39 @@ export class McpIntegrationService {
       return response.data;
     } catch (error: any) {
       console.error(`[MCP Integration] Failed to connect ${provider}:`, error);
+
+      // Check if error is "already connected"
+      const errorMessage = error.response?.data?.detail || error.message || '';
+      if (error.response?.status === 400 &&
+          (errorMessage.toLowerCase().includes('already has an active') ||
+           errorMessage.toLowerCase().includes('already connected'))) {
+        console.log(`[MCP Integration] ${provider} is already connected for user ${userId}`);
+        // Return a response indicating it's already connected
+        return {
+          auth_url: null,
+          message: `${provider} is already connected`,
+          status: 'already_connected',
+        };
+      }
+
       throw this.handleError(error);
     }
   }
 
   /**
    * Disconnect an existing integration
-   * DELETE /api/integrations/{provider}
+   * POST /api/integrations/disconnect
    * Note: MCP service uses user_id, not JWT authentication
    */
   async disconnectIntegration(userId: string, provider: string): Promise<{ message: string }> {
     try {
       console.log(`[MCP Integration] Disconnecting ${provider} for user: ${userId}`);
 
-      const response = await this.axiosInstance.delete<{ message: string }>(
-        `/api/integrations/${provider}`,
+      const response = await this.axiosInstance.post<{ message: string }>(
+        '/api/integrations/disconnect',
         {
-          params: {
-            user_id: userId
-          }
+          user_id: userId,
+          provider: provider
         }
       );
       return response.data;
