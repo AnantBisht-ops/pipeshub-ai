@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { useOrganizationContext } from './OrganizationContext';
+import { useOrganizationContext } from '../context/OrganizationContext';
 import axios from '../utils/axios';
 
 interface Project {
@@ -49,7 +49,7 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     try {
       setIsLoading(true);
-      const response = await axios.get(`/api/v1/organizations/${currentOrg._id}/projects`);
+      const response = await axios.get('/api/v1/projects');
       setProjects(response.data);
 
       // Set first project as current if none selected
@@ -80,7 +80,7 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const createProject = async (data: any) => {
     try {
       const response = await axios.post(
-        `/api/v1/organizations/${currentOrg?._id}/projects`,
+        '/api/v1/projects',
         data
       );
       setProjects(prev => [...prev, response.data]);
