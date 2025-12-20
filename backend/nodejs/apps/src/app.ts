@@ -53,6 +53,7 @@ import { CrawlingManagerContainer } from './modules/crawling_manager/container/c
 import createCrawlingManagerRouter from './modules/crawling_manager/routes/cm_routes';
 import { MigrationService } from './modules/configuration_manager/services/migration.service';
 import { createTeamsRouter } from './modules/user_management/routes/teams.routes';
+import mcpIntegrationRoutes from './modules/qna/routes/mcp-integration.routes';
 
 const loggerConfig = {
   service: 'Application',
@@ -365,6 +366,9 @@ export class Application {
       '/api/v1/crawlingManager',
       createCrawlingManagerRouter(this.crawlingManagerContainer),
     );
+
+    // MCP integration routes
+    this.app.use('/api/v1/mcp', mcpIntegrationRoutes);
   }
 
   private configureErrorHandling(): void {

@@ -45,6 +45,12 @@ const ConnectorManagementPage = lazy(
     () => import('src/pages/dashboard/account/connectors/oauth-callback')
   );
 
+// MCP Integration pages
+const McpSettings = lazy(() => import('src/pages/dashboard/account/mcp-settings'));
+const McpOAuthCallback = lazy(
+  () => import('src/sections/accountdetails/mcp/components/mcp-oauth-callback')
+);
+
 const SamlSsoConfigPage = lazy(() => import('src/pages/dashboard/account/saml-sso-config'));
 
 // knowledge-base
@@ -351,6 +357,27 @@ export const dashboardRoutes = [
                     ],
                   },
                   {
+                    path: 'mcp',
+                    children: [
+                      {
+                        element: CONFIG.auth.skip ? (
+                          <McpSettings />
+                        ) : (
+                          <BusinessAdminOnlyRoute component={McpSettings} />
+                        ),
+                        index: true,
+                      },
+                      {
+                        path: 'oauth/callback',
+                        element: CONFIG.auth.skip ? (
+                          <McpOAuthCallback />
+                        ) : (
+                          <BusinessAdminOnlyRoute component={McpOAuthCallback} />
+                        ),
+                      },
+                    ],
+                  },
+                  {
                     path: 'services',
                     element: CONFIG.auth.skip ? (
                       <ServiceSettings />
@@ -463,6 +490,27 @@ export const dashboardRoutes = [
                         path: ':connectorName',
                         element: <IndividualOnlyRoute component={ConnectorManagementPage} />,
                       }
+                    ],
+                  },
+                  {
+                    path: 'mcp',
+                    children: [
+                      {
+                        element: CONFIG.auth.skip ? (
+                          <McpSettings />
+                        ) : (
+                          <IndividualOnlyRoute component={McpSettings} />
+                        ),
+                        index: true,
+                      },
+                      {
+                        path: 'oauth/callback',
+                        element: CONFIG.auth.skip ? (
+                          <McpOAuthCallback />
+                        ) : (
+                          <IndividualOnlyRoute component={McpOAuthCallback} />
+                        ),
+                      },
                     ],
                   },
                   {

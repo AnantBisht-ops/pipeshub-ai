@@ -34,7 +34,7 @@ export class MongoService {
     try {
       const { uri, db, options } = this.config;
       const defaultOptions = {
-        serverSelectionTimeoutMS: 5000,
+        serverSelectionTimeoutMS: 15000, // Increased from 5000 to 15000 for Docker on Windows
         socketTimeoutMS: 45000,
         family: 4,
         maxPoolSize: 10,
