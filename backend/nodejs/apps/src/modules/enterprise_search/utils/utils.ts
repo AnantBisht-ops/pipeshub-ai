@@ -125,9 +125,13 @@ export const buildSortOptions = (req: AuthenticatedUserRequest) => {
 };
 
 export const buildSharedWithMeFilter = (req: AuthenticatedUserRequest) => {
+  // Extract projectId from request context
+  const projectId = (req as any).project?.projectId;
+
   // Initialize base filter with required fields
   const filter = {
     orgId: new mongoose.Types.ObjectId(`${req.user?.orgId}`),
+    projectId: projectId || { $in: [null, undefined] }, // Backward compatibility
     isDeleted: false,
     isArchived: false,
     // Only include conversations where:
@@ -166,9 +170,13 @@ export const buildFilter = (
   userId: string,
   id?: string, // conversationId or searchId
 ) => {
+  // Extract projectId from request context
+  const projectId = (req as any).project?.projectId;
+
   // Initialize base filter with required fields
   const filter: any = {
     orgId: new mongoose.Types.ObjectId(`${orgId}`),
+    projectId: projectId || { $in: [null, undefined] }, // Backward compatibility
     isDeleted: false,
     isArchived: false,
     $or: [
@@ -887,9 +895,13 @@ export const buildAgentConversationFilter = (
   agentKey: string,
   conversationId?: string,
 ) => {
+  // Extract projectId from request context
+  const projectId = (req as any).project?.projectId;
+
   const filter: any = {
     agentKey,
     orgId: new mongoose.Types.ObjectId(`${orgId}`),
+    projectId: projectId || { $in: [null, undefined] }, // Backward compatibility
     $or: [{ userId: new mongoose.Types.ObjectId(`${userId}`) }],
     isDeleted: false,
   };
@@ -945,8 +957,12 @@ export const buildAgentSharedWithMeFilter = (
   userId: string,
   agentKey: string,
 ) => {
+  // Extract projectId from request context
+  const projectId = (req as any).project?.projectId;
+
   const filter: any = {
     agentKey,
+    projectId: projectId || { $in: [null, undefined] }, // Backward compatibility
     isDeleted: false,
     isShared: true,
     'sharedWith.userId': userId,

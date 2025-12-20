@@ -2,6 +2,7 @@ import { Router, Response, NextFunction } from 'express';
 import { Container } from 'inversify';
 import { ValidationMiddleware } from '../../../libs/middlewares/validation.middleware';
 import { AuthMiddleware } from '../../../libs/middlewares/auth.middleware';
+import { optionalProjectContext } from '../../../libs/middlewares/project-context.middleware';
 import {
   AuthenticatedUserRequest,
   AuthenticatedServiceRequest,
@@ -41,6 +42,7 @@ export function createStorageRouter(container: Container): Router {
   router.post(
     '/upload',
     authMiddleware.authenticate,
+    optionalProjectContext,
     metricsMiddleware(container),
     ...FileProcessorFactory.createBufferUploadProcessor({
       fieldName: 'file',
@@ -142,6 +144,7 @@ export function createStorageRouter(container: Container): Router {
   router.get(
     '/:documentId',
     authMiddleware.authenticate,
+    optionalProjectContext,
     metricsMiddleware(container),
     ValidationMiddleware.validate(DocumentIdParams),
     async (

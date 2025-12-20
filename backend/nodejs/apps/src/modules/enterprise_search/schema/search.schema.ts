@@ -12,6 +12,7 @@ export interface IEnterpriseSemanticSearch extends Document {
   isArchived: boolean;
   archivedBy: mongoose.Types.ObjectId;
   orgId: mongoose.Types.ObjectId;
+  projectId?: mongoose.Types.ObjectId;
   userId: mongoose.Types.ObjectId;
   citationIds: mongoose.Types.ObjectId[]; // Array of references to citation documents
   records: Record<string, any>;
@@ -24,6 +25,12 @@ const enterpriseSemanticSearchSchema = new Schema<IEnterpriseSemanticSearch>(
     query: { type: String, required: true, index: true },
     limit: { type: Number, required: true },
     orgId: { type: Schema.Types.ObjectId, required: true, index: true },
+    projectId: {
+      type: Schema.Types.ObjectId,
+      ref: 'projects',
+      required: false,
+      index: true
+    },
     userId: { type: Schema.Types.ObjectId, required: true, index: true },
     citationIds: [{ 
       type: Schema.Types.ObjectId, 
@@ -53,6 +60,7 @@ const enterpriseSemanticSearchSchema = new Schema<IEnterpriseSemanticSearch>(
 );
 
 enterpriseSemanticSearchSchema.index({ query: 'text' });
+enterpriseSemanticSearchSchema.index({ orgId: 1, projectId: 1 });
 
 const EnterpriseSemanticSearch = mongoose.model<IEnterpriseSemanticSearch>(
   'search',

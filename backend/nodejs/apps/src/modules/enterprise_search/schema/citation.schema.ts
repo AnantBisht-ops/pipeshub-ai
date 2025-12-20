@@ -18,6 +18,7 @@ export interface ICitationMetadata {
   connector?: string;
   recordType?: string;
   orgId: string;
+  projectId?: string;
   blockType?: string;
   blockText?: string;
   mimeType: string;
@@ -72,6 +73,7 @@ const citationMetadataSchema = new Schema<ICitationMetadata>({
   connector: { type: String },
   recordType: { type: String },
   orgId: { type: String, required: true },
+  projectId: { type: String, required: false },
   blockType: { type: String },
   blockText: { type: String },
   mimeType: { type: String, required: true },
@@ -107,6 +109,9 @@ citationSchema.index({ content: 'text' });
 // Create index on common metadata fields for efficient querying
 citationSchema.index({ 'metadata.recordId': 1 });
 citationSchema.index({ 'metadata.recordName': 1 });
+citationSchema.index({ 'metadata.orgId': 1 });
+citationSchema.index({ 'metadata.projectId': 1 });
+citationSchema.index({ 'metadata.orgId': 1, 'metadata.projectId': 1 });
 
 citationSchema.statics.createFromAIResponse = async function (
   aiCitation,

@@ -1,0 +1,468 @@
+name: Deploy Multi-Tenancy Update
+
+on:
+  push:
+    branches: [feature/multi-tenancy, main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+      skip_backup:
+        description: 'Skip backup (not recommended for production)'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  NODE_VERSION: '18.x'
+  PYTHON_VERSION: '3.9'
+
+jobs:
+  # ==================== PRE-DEPLOYMENT CHECKS ====================
+  pre-deployment:
+    name: Pre-Deployment Validation
+    runs-on: ubuntu-latest
+    outputs:
+      should_deploy: ${{ steps.validation.outputs.should_deploy }}
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          npm ci --prefix backend/nodejs/apps
+          npm ci --prefix frontend
+
+      - name: Run tests
+        run: |
+          echo "Running unit tests..."
+          npm run test:unit --prefix backend/nodejs/apps
+          npm run test:unit --prefix frontend
+
+      - name: Run security audit
+        run: |
+          echo "Running security audit..."
+          npm audit --prefix backend/nodejs/apps
+          npm audit --prefix frontend
+          node tests/security/multi-tenancy-security-audit.js || true
+
+      - name: Validate migration
+        id: validation
+        run: |
+          echo "Validating migration scripts..."
+          node backend/nodejs/apps/src/migrations/test-migration.js
+          echo "should_deploy=true" >> $GITHUB_OUTPUT
+
+      - name: Check deployment window
+        if: github.event.inputs.environment == 'production'
+        run: |
+          HOUR=$(date +%H)
+          DAY=$(date +%u)
+          if [[ $DAY -ge 6 ]] || [[ $HOUR -lt 6 ]] || [[ $HOUR -gt 18 ]]; then
+            echo "⚠️  Warning: Deploying outside business hours"
+          fi
+
+  # ==================== BACKUP PRODUCTION ====================
+  backup:
+    name: Backup Production Data
+    runs-on: ubuntu-latest
+    needs: pre-deployment
+    if: |
+      needs.pre-deployment.outputs.should_deploy == 'true' &&
+      github.event.inputs.skip_backup != 'true'
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Backup MongoDB
+        run: |
+          echo "Creating MongoDB backup..."
+          chmod +x ./scripts/backup.sh
+          ./scripts/backup.sh
+
+          # Upload to S3
+          aws s3 cp backups/latest/ s3://${{ secrets.BACKUP_BUCKET }}/multi-tenancy-$(date +%Y%m%d-%H%M%S)/ --recursive
+
+      - name: Backup Redis
+        run: |
+          echo "Creating Redis backup..."
+          # SSH to production and create Redis backup
+          echo "${{ secrets.PRODUCTION_SSH_KEY }}" > ssh_key
+          chmod 600 ssh_key
+          ssh -i ssh_key -o StrictHostKeyChecking=no ${{ secrets.PRODUCTION_HOST }} \
+            "redis-cli BGSAVE && sleep 5 && cp /var/lib/redis/dump.rdb /tmp/redis-backup-$(date +%Y%m%d).rdb"
+
+      - name: Create backup manifest
+        run: |
+          cat > backup-manifest.json << EOF
+          {
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "version": "pre-multi-tenancy",
+            "databases": {
+              "mongodb": "s3://${{ secrets.BACKUP_BUCKET }}/multi-tenancy-$(date +%Y%m%d-%H%M%S)/",
+              "redis": "/tmp/redis-backup-$(date +%Y%m%d).rdb"
+            },
+            "commit": "${{ github.sha }}",
+            "triggered_by": "${{ github.actor }}"
+          }
+          EOF
+
+          aws s3 cp backup-manifest.json s3://${{ secrets.BACKUP_BUCKET }}/manifests/
+
+  # ==================== BUILD ====================
+  build:
+    name: Build Application
+    runs-on: ubuntu-latest
+    needs: [pre-deployment, backup]
+    if: needs.pre-deployment.outputs.should_deploy == 'true'
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Build backend
+        run: |
+          cd backend/nodejs/apps
+          npm ci
+          npm run build
+
+          # Create deployment package
+          tar -czf backend-build.tar.gz dist/ package.json package-lock.json
+
+      - name: Build frontend
+        env:
+          VITE_API_URL: ${{ secrets.API_URL }}
+          VITE_ENABLE_MULTI_TENANCY: true
+        run: |
+          cd frontend
+          npm ci
+          npm run build
+
+          # Create deployment package
+          tar -czf frontend-build.tar.gz dist/
+
+      - name: Build Docker images
+        run: |
+          docker build -t pipeshub/backend:multi-tenant ./backend/nodejs
+          docker build -t pipeshub/frontend:multi-tenant ./frontend
+
+          # Push to registry
+          echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+          docker push pipeshub/backend:multi-tenant
+          docker push pipeshub/frontend:multi-tenant
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-artifacts
+          path: |
+            backend/nodejs/apps/backend-build.tar.gz
+            frontend/frontend-build.tar.gz
+
+  # ==================== MIGRATION ====================
+  migrate:
+    name: Run Database Migration
+    runs-on: ubuntu-latest
+    needs: build
+    environment: ${{ github.event.inputs.environment || 'staging' }}
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install migration dependencies
+        run: |
+          cd backend/nodejs/apps
+          npm ci
+
+      - name: Run migration dry-run
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+        run: |
+          echo "Running migration in dry-run mode..."
+          ./scripts/run-migration.sh --dry-run
+
+      - name: Run actual migration
+        if: success()
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+        run: |
+          echo "Running actual migration..."
+          ./scripts/run-migration.sh
+
+          # Verify migration
+          node ./scripts/verify-migration.js
+
+      - name: Generate migration report
+        run: |
+          cat > migration-report.json << EOF
+          {
+            "status": "completed",
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "environment": "${{ github.event.inputs.environment || 'staging' }}",
+            "commit": "${{ github.sha }}"
+          }
+          EOF
+
+  # ==================== DEPLOY BACKEND ====================
+  deploy-backend:
+    name: Deploy Backend Services
+    runs-on: ubuntu-latest
+    needs: migrate
+    environment: ${{ github.event.inputs.environment || 'staging' }}
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: build-artifacts
+
+      - name: Deploy to Kubernetes
+        env:
+          KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
+        run: |
+          echo "$KUBE_CONFIG" | base64 -d > kubeconfig
+          export KUBECONFIG=kubeconfig
+
+          # Update backend deployment
+          kubectl set image deployment/backend backend=pipeshub/backend:multi-tenant -n ${{ github.event.inputs.environment || 'staging' }}
+
+          # Wait for rollout
+          kubectl rollout status deployment/backend -n ${{ github.event.inputs.environment || 'staging' }} --timeout=600s
+
+      - name: Update environment variables
+        run: |
+          kubectl set env deployment/backend \
+            MULTI_TENANT_ENABLED=true \
+            REDIS_URL=${{ secrets.REDIS_URL }} \
+            DEFAULT_ORG_PROJECTS_LIMIT=5 \
+            DEFAULT_ORG_USERS_LIMIT=20 \
+            -n ${{ github.event.inputs.environment || 'staging' }}
+
+      - name: Scale deployment
+        if: github.event.inputs.environment == 'production'
+        run: |
+          kubectl scale deployment/backend --replicas=3 -n production
+
+  # ==================== DEPLOY FRONTEND ====================
+  deploy-frontend:
+    name: Deploy Frontend Application
+    runs-on: ubuntu-latest
+    needs: deploy-backend
+    environment: ${{ github.event.inputs.environment || 'staging' }}
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: build-artifacts
+
+      - name: Deploy to CDN
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: |
+          # Extract frontend build
+          tar -xzf frontend/frontend-build.tar.gz
+
+          # Sync to S3
+          aws s3 sync dist/ s3://${{ secrets.FRONTEND_BUCKET }}/ --delete
+
+          # Invalidate CloudFront
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} \
+            --paths "/*"
+
+  # ==================== HEALTH CHECKS ====================
+  health-check:
+    name: Post-Deployment Health Checks
+    runs-on: ubuntu-latest
+    needs: [deploy-backend, deploy-frontend]
+    environment: ${{ github.event.inputs.environment || 'staging' }}
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Wait for services to stabilize
+        run: sleep 30
+
+      - name: Run health checks
+        run: |
+          chmod +x ./scripts/health-check.sh
+          ./scripts/health-check.sh ${{ github.event.inputs.environment || 'staging' }}
+
+      - name: Run smoke tests
+        run: |
+          npm install -g newman
+          newman run tests/postman/multi-tenancy-smoke-tests.json \
+            --environment tests/postman/environments/${{ github.event.inputs.environment || 'staging' }}.json
+
+      - name: Check metrics
+        run: |
+          # Check API response times
+          curl -w "\nResponse time: %{time_total}s\n" \
+            -H "Authorization: Bearer ${{ secrets.API_TEST_TOKEN }}" \
+            ${{ secrets.API_URL }}/health
+
+          # Check cache hit rate
+          redis-cli --raw info stats | grep keyspace_hits
+
+      - name: Performance benchmark
+        if: github.event.inputs.environment == 'staging'
+        run: |
+          node tests/performance/multi-tenancy-benchmark.js
+
+  # ==================== ROLLBACK ====================
+  rollback:
+    name: Rollback Deployment
+    runs-on: ubuntu-latest
+    needs: health-check
+    if: failure()
+    environment: ${{ github.event.inputs.environment || 'staging' }}
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Initiate rollback
+        run: |
+          echo "🔄 Initiating rollback..."
+
+          # Rollback Kubernetes deployments
+          kubectl rollout undo deployment/backend -n ${{ github.event.inputs.environment || 'staging' }}
+          kubectl rollout undo deployment/frontend -n ${{ github.event.inputs.environment || 'staging' }}
+
+          # Wait for rollback
+          kubectl rollout status deployment/backend -n ${{ github.event.inputs.environment || 'staging' }}
+
+      - name: Restore database
+        if: github.event.inputs.environment == 'production'
+        run: |
+          echo "Restoring database from backup..."
+          ./scripts/restore.sh latest
+
+      - name: Clear caches
+        run: |
+          redis-cli FLUSHDB
+
+      - name: Notify team
+        uses: 8398a7/action-slack@v3
+        with:
+          status: custom
+          fields: workflow,job,commit,repo,ref,author,took
+          custom_payload: |
+            {
+              attachments: [{
+                color: 'danger',
+                text: `🔴 Multi-tenancy deployment rolled back on ${{ github.event.inputs.environment || 'staging' }}`,
+              }]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+
+  # ==================== NOTIFICATION ====================
+  notify:
+    name: Send Notifications
+    runs-on: ubuntu-latest
+    needs: health-check
+    if: always()
+    environment: ${{ github.event.inputs.environment || 'staging' }}
+
+    steps:
+      - name: Notify success
+        if: success()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: custom
+          fields: workflow,job,commit,repo,ref,author,took
+          custom_payload: |
+            {
+              attachments: [{
+                color: 'good',
+                text: `✅ Multi-tenancy successfully deployed to ${{ github.event.inputs.environment || 'staging' }}`,
+                fields: [{
+                  title: 'Version',
+                  value: 'v2.0.0-multi-tenant',
+                  short: true
+                }, {
+                  title: 'Deployed by',
+                  value: '${{ github.actor }}',
+                  short: true
+                }]
+              }]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+
+      - name: Notify failure
+        if: failure()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: custom
+          fields: workflow,job,commit,repo,ref,author,took
+          custom_payload: |
+            {
+              attachments: [{
+                color: 'danger',
+                text: `❌ Multi-tenancy deployment failed on ${{ github.event.inputs.environment || 'staging' }}`,
+                fields: [{
+                  title: 'Environment',
+                  value: '${{ github.event.inputs.environment || 'staging' }}',
+                  short: true
+                }, {
+                  title: 'Triggered by',
+                  value: '${{ github.actor }}',
+                  short: true
+                }]
+              }]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+
+      - name: Update status page
+        if: github.event.inputs.environment == 'production'
+        run: |
+          curl -X POST ${{ secrets.STATUS_PAGE_URL }}/api/incidents \
+            -H "Authorization: Bearer ${{ secrets.STATUS_PAGE_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "status": "${{ job.status }}",
+              "component": "multi-tenancy",
+              "message": "Multi-tenancy deployment ${{ job.status }}"
+            }'

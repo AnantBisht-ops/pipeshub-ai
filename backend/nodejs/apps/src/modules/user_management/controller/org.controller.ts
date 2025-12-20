@@ -62,10 +62,20 @@ export class OrgController {
     return domain;
   }
 
-  async checkOrgExistence(res: Response): Promise<void> {
-    const count = await Org.countDocuments();
+  async checkOrgExistence(req: any, res: Response): Promise<void> {
+    const { email, domain } = req.query;
 
-    res.status(200).json({ exists: count != 0 });
+    let query: any = { isDeleted: false };
+
+    if (email) {
+      query.contactEmail = email;
+    }
+    if (domain) {
+      query.domain = domain;
+    }
+
+    const count = await Org.countDocuments(query);
+    res.status(200).json({ exists: count > 0, count });
   }
 
   async createOrg(req: ContainerRequest, res: Response): Promise<void> {
@@ -87,9 +97,27 @@ export class OrgController {
         );
       }
 
-      const count = await Org.countDocuments();
-      if (count > 0) {
-        throw new BadRequestError('There is already an organization');
+      // Check if user has reached organization limit
+      const userOrgsCount = await Org.countDocuments({
+        contactEmail: contactEmail,
+        isDeleted: false
+      });
+
+      if (userOrgsCount >= 10) {
+        throw new BadRequestError(
+          'User has reached maximum organization limit (10)'
+        );
+      }
+
+      // Check if org slug/domain is unique
+      const existingOrg = await Org.findOne({
+        domain: this.getDomainFromEmail(contactEmail),
+        isDeleted: false
+      });
+
+      if (existingOrg && req.body.accountType === 'business') {
+        // For business accounts, domain must be unique
+        throw new BadRequestError('Organization with this domain already exists');
       }
       const domain = this.getDomainFromEmail(contactEmail);
       if (!domain) {

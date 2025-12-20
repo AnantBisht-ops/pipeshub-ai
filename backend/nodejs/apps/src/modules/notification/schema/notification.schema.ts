@@ -5,6 +5,7 @@ const { ObjectId } = Schema.Types;
 export interface INotification extends Document {
   title: string;
   orgId: mongoose.Types.ObjectId;
+  projectId?: mongoose.Types.ObjectId;
   type: string;
   link: string;
   status: "Read" | "Unread" | "Archived";
@@ -30,6 +31,11 @@ const notificationSchema = new Schema<INotification>(
     orgId: {
       type: ObjectId,
       required: [true, "Organization ID is required"],
+    },
+    projectId: {
+      type: ObjectId,
+      ref: 'projects',
+      required: false,
     },
     type: {
       type: String,
@@ -91,5 +97,7 @@ const notificationSchema = new Schema<INotification>(
 // Indexes for performance improvements
 notificationSchema.index({ orgId: 1, status: 1 });
 notificationSchema.index({ assignedTo: 1, isDeleted: 1 });
+notificationSchema.index({ orgId: 1, projectId: 1 });
+notificationSchema.index({ projectId: 1 });
 
 export const Notifications: Model<INotification> = mongoose.model<INotification>("Notifications", notificationSchema);

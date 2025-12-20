@@ -133,6 +133,12 @@ const agentConversationSchema = new Schema({
   // Standard conversation fields
   userId: { type: Schema.Types.ObjectId, required: true, index: true },
   orgId: { type: Schema.Types.ObjectId, required: true, index: true },
+  projectId: {
+    type: Schema.Types.ObjectId,
+    ref: 'projects',
+    index: true,
+    required: false, // Optional for backward compatibility
+  },
   title: { type: String },
   initiator: { type: Schema.Types.ObjectId, required: true, index: true },
   messages: [messageSchema],

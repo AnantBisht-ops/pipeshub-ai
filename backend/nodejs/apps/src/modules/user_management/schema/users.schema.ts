@@ -7,7 +7,10 @@ import { generateUniqueSlug } from '../controller/counters.controller';
 
 export interface User extends Document, Address {
   slug?: string;
-  orgId: Types.ObjectId;
+  orgId: Types.ObjectId; // Primary organization (for backward compatibility)
+  organizations?: Types.ObjectId[]; // Array of all organizations user belongs to
+  defaultOrgId?: Types.ObjectId; // User's default organization
+  lastAccessedOrgId?: Types.ObjectId; // Last accessed organization
   fullName?: string;
   firstName?: string;
   lastName?: string;
@@ -25,6 +28,18 @@ const userSchema = new Schema<User>(
   {
     slug: { type: String, unique: true },
     orgId: { type: Schema.Types.ObjectId, ref: 'orgs', required: true },
+    organizations: [{
+      type: Schema.Types.ObjectId,
+      ref: 'orgs'
+    }],
+    defaultOrgId: {
+      type: Schema.Types.ObjectId,
+      ref: 'orgs'
+    },
+    lastAccessedOrgId: {
+      type: Schema.Types.ObjectId,
+      ref: 'orgs'
+    },
     fullName: { type: String, trim: true },
     firstName: { type: String, trim: true },
     lastName: { type: String, trim: true },

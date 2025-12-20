@@ -34,7 +34,9 @@ import { StyledDivider, useNavColorVars } from './styles';
 import { AccountDrawer } from '../components/account-drawer';
 import { getDashboardNavData } from '../config-nav-dashboard';
 import {ThemeToggleButton } from '../components/theme-toggle-button';
-   
+import { OrganizationSwitcher } from 'src/components/organization-switcher';
+import { ProjectSelector } from 'src/components/project-selector/ProjectSelector';
+
 // ----------------------------------------------------------------------
 
 export type DashboardLayoutProps = {
@@ -193,6 +195,32 @@ export function DashboardLayout({ sx, children, header, data }: DashboardLayoutP
                     }}
                   />
                 )}
+                {/* -- Organization Switcher -- */}
+                <Box
+                  sx={{
+                    display: 'none',
+                    [theme.breakpoints.up(layoutQuery)]: {
+                      display: 'flex',
+                      alignItems: 'center',
+                      ml: 2,
+                    },
+                  }}
+                >
+                  <OrganizationSwitcher />
+                </Box>
+                {/* -- Project Selector -- */}
+                <Box
+                  sx={{
+                    display: 'none',
+                    [theme.breakpoints.up(layoutQuery)]: {
+                      display: 'flex',
+                      alignItems: 'center',
+                      ml: 1,
+                    },
+                  }}
+                >
+                  <ProjectSelector />
+                </Box>
                 {/* -- Divider -- */}
                 {isNavHorizontal && (
                   <StyledDivider

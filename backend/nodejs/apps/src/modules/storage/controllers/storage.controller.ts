@@ -227,6 +227,8 @@ export class StorageController {
 
       const orgId = extractOrgId(req);
       const userId = extractUserId(req);
+      const projectId = (req as any).project?.projectId;
+
       if (!orgId) {
         throw new BadRequestError('OrgId not found in AuthToken');
       }
@@ -251,6 +253,7 @@ export class StorageController {
         documentPath,
         alternateDocumentName,
         orgId: new mongoose.Types.ObjectId(orgId),
+        projectId: projectId ? new mongoose.Types.ObjectId(projectId) : undefined,
         isVersionedFile: isVersionedFile,
         initiatorUserId: userId ? new mongoose.Types.ObjectId(userId) : null,
         permissions: permissions,
@@ -278,9 +281,12 @@ export class StorageController {
         throw new BadRequestError(' document id is not passed ');
       }
       const orgId = extractOrgId(req);
+      const projectId = (req as any).project?.projectId;
+
       const doc = await DocumentModel.findOne({
         _id: documentId,
         orgId: orgId,
+        projectId: projectId || { $in: [null, undefined] }, // Backward compatibility
       });
 
       if (!doc) {
@@ -301,10 +307,12 @@ export class StorageController {
     try {
       const orgId = extractOrgId(req);
       const userId = extractUserId(req);
+      const projectId = (req as any).project?.projectId;
       const { documentId } = req.params;
       const document = await DocumentModel.findOne({
         _id: documentId,
         orgId,
+        projectId: projectId || { $in: [null, undefined] }, // Backward compatibility
       });
 
       if (!document) {
@@ -754,10 +762,12 @@ export class StorageController {
   ): Promise<void> {
     try {
       const { documentId } = req.params;
+      const projectId = (req as any).project?.projectId;
 
       const document = await DocumentModel.findOne({
         _id: documentId,
         orgId: req.user?.orgId,
+        projectId: projectId || { $in: [null, undefined] }, // Backward compatibility
       });
 
       if (!document || !document.documentPath) {

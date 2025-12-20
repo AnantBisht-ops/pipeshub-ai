@@ -12,6 +12,8 @@ import { ErrorMiddleware } from './libs/middlewares/error.middleware';
 import { createUserRouter } from './modules/user_management/routes/users.routes';
 import { createUserGroupRouter } from './modules/user_management/routes/userGroups.routes';
 import { createOrgRouter } from './modules/user_management/routes/org.routes';
+import organizationRoutes from './modules/org_management/routes/organization.routes';
+import projectRoutes from './modules/project_management/routes/project.routes';
 import {
   createConversationalRouter,
   createSemanticSearchRouter,
@@ -301,6 +303,8 @@ export class Application {
       createUserGroupRouter(this.entityManagerContainer),
     );
     this.app.use('/api/v1/org', createOrgRouter(this.entityManagerContainer));
+    this.app.use('/api/v1/organizations', organizationRoutes);
+    this.app.use('/api/v1/projects', projectRoutes);
 
     this.app.use('/api/v1/saml', createSamlRouter(this.authServiceContainer, this.entityManagerContainer));
 
