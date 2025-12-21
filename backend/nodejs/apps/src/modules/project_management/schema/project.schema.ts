@@ -180,13 +180,18 @@ ProjectSchema.pre('save', function (next) {
 });
 
 // Middleware to ensure admins are also in members array
-ProjectSchema.pre('save', function (next) {
+ProjectSchema.pre('save', function (next: any) {
   if (this.admins && this.admins.length > 0) {
-    // Ensure all admins are in members array
-    const memberIds = this.members.map((m) => m.toString());
-    this.admins.forEach((adminId) => {
-      if (!memberIds.includes(adminId.toString())) {
-        this.members.push(adminId);
+    // Ensure all admins are in members array (using new IProjectMember structure)
+    const memberUserIds = this.members.map((m: any) => m.userId?.toString() || m.toString());
+    this.admins.forEach((adminId: any) => {
+      if (!memberUserIds.includes(adminId.toString())) {
+        // Add admin as member with admin role
+        this.members.push({
+          userId: adminId,
+          role: 'admin',
+          joinedAt: new Date()
+        });
       }
     });
   }
@@ -199,28 +204,62 @@ ProjectSchema.methods.isUserAdmin = function (userId: string | Types.ObjectId): 
   return this.admins.some((adminId: Types.ObjectId) => adminId.toString() === userIdStr);
 };
 
-// Instance method to check if user is member
+// Instance method to check if user is member (works with IProjectMember structure)
 ProjectSchema.methods.isUserMember = function (userId: string | Types.ObjectId): boolean {
   const userIdStr = userId.toString();
-  return this.members.some((memberId: Types.ObjectId) => memberId.toString() === userIdStr);
+  return this.members.some((member: any) => 
+    (member.userId?.toString() || member.toString()) === userIdStr
+  );
 };
 
-// Instance method to add member
-ProjectSchema.methods.addMember = function (userId: Types.ObjectId): void {
-  if (!this.isUserMember(userId)) {
-    this.members.push(userId);
+// Instance method to add member (matches controller signature: userId, role, addedBy)
+ProjectSchema.methods.addMember = async function (
+  userId: Types.ObjectId | string,
+  role: 'owner' | 'admin' | 'editor' | 'viewer' = 'viewer',
+  _addedBy?: Types.ObjectId | string
+): Promise<void> {
+  const userIdStr = userId.toString();
+  const isMember = this.members.some((m: any) => 
+    (m.userId?.toString() || m.toString()) === userIdStr
+  );
+  
+  if (!isMember) {
+    this.members.push({
+      userId: userId,
+      role: role,
+      joinedAt: new Date()
+    });
+    await this.save();
   }
 };
 
-// Instance method to remove member
-ProjectSchema.methods.removeMember = function (userId: Types.ObjectId): void {
+// Instance method to update member role (called by controller)
+ProjectSchema.methods.updateMemberRole = async function (
+  userId: Types.ObjectId | string,
+  newRole: 'admin' | 'editor' | 'viewer'
+): Promise<void> {
+  const userIdStr = userId.toString();
+  const member = this.members.find((m: any) => 
+    (m.userId?.toString() || m.toString()) === userIdStr
+  );
+  
+  if (member) {
+    member.role = newRole;
+    await this.save();
+  }
+};
+
+// Instance method to remove member (works with IProjectMember structure)
+ProjectSchema.methods.removeMember = async function (userId: Types.ObjectId | string): Promise<void> {
+  const userIdStr = userId.toString();
   this.members = this.members.filter(
-    (memberId: Types.ObjectId) => memberId.toString() !== userId.toString(),
+    (member: any) => (member.userId?.toString() || member.toString()) !== userIdStr
   );
   // Also remove from admins if they were an admin
   this.admins = this.admins.filter(
-    (adminId: Types.ObjectId) => adminId.toString() !== userId.toString(),
+    (adminId: Types.ObjectId) => adminId.toString() !== userIdStr
   );
+  await this.save();
 };
 
 // Instance method to promote to admin
