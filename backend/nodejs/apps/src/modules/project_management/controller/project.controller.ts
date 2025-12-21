@@ -193,7 +193,7 @@ export class ProjectController {
             ...project.toObject(),
             userRole: member?.role || null,
             metrics: {
-              ...project.metrics,
+              ...(project.metrics || {}),
               conversationCount,
               documentCount
             }
