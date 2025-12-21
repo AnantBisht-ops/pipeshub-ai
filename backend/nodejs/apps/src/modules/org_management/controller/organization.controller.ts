@@ -150,7 +150,7 @@ export class OrganizationController {
 
       // Update user's last accessed org
       if (user.lastAccessedOrgId !== org._id) {
-        user.lastAccessedOrgId = org._id;
+        user.lastAccessedOrgId = org._id as any;
         await user.save();
       }
 

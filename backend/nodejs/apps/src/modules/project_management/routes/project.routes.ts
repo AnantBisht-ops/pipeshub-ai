@@ -1,9 +1,10 @@
-import express from 'express';
+import express, { Response } from 'express';
 import { Container } from 'inversify';
 import { ProjectController } from '../controller/project.controller';
 import { AuthMiddleware } from '../../../libs/middlewares/auth.middleware';
 import { Logger } from '../../../libs/services/logger.service';
 import { AuthTokenService } from '../../../libs/services/authtoken.service';
+import { IMultiTenantRequest } from '../../../libs/types/multi-tenancy.types';
 
 const router = express.Router();
 
@@ -151,7 +152,7 @@ router.post('/:projectId/transfer-ownership',
 router.post('/:projectId/switch',
   authMiddleware.authenticate.bind(authMiddleware),
   authMiddleware.verifyProjectAccess.bind(authMiddleware),
-  async (req, res) => {
+  async (req: IMultiTenantRequest, res: Response): Promise<void> => {
     // The verifyProjectAccess middleware already sets the project context
     // Return the project context to the client
     res.json({

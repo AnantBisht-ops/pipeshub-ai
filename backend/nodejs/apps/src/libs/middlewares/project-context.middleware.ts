@@ -14,7 +14,7 @@ export class ProjectContextMiddleware {
   /**
    * Extract and validate projectId from request
    */
-  static extractProjectContext = (req: Request, res: Response, next: NextFunction) => {
+  static extractProjectContext = (req: Request, _res: Response, next: NextFunction) => {
     try {
       // Extract projectId from various sources (priority order)
       let projectId =
@@ -58,15 +58,15 @@ export class ProjectContextMiddleware {
       });
     }
 
-    next();
+    return next();
   };
 
   /**
    * Optional project context - allows both project-scoped and org-scoped access
    */
-  static optionalProjectContext = (req: Request, res: Response, next: NextFunction) => {
+  static optionalProjectContext = (req: Request, _res: Response, next: NextFunction) => {
     // Just extract if available, don't require it
-    ProjectContextMiddleware.extractProjectContext(req, res, next);
+    ProjectContextMiddleware.extractProjectContext(req, _res, next);
   };
 }
 

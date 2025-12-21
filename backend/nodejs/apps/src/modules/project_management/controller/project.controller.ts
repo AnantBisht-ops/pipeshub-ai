@@ -1,6 +1,5 @@
 import { Response, NextFunction } from 'express';
-import { inject, injectable } from 'inversify';
-import mongoose from 'mongoose';
+import { injectable } from 'inversify';
 import { Project } from '../schema/project.schema';
 import { Org } from '../../user_management/schema/org.schema';
 import { Users } from '../../user_management/schema/users.schema';
@@ -611,7 +610,7 @@ export class ProjectController {
       }
 
       // Update role using schema method
-      await project.updateMemberRole(userId, role as any);
+      await project.updateMemberRole(userId!, role as any);
 
       this.logger.info(`Updated role for user ${userId} to ${role} in project ${project.slug}`);
 
@@ -676,7 +675,7 @@ export class ProjectController {
       }
 
       // Remove member using schema method
-      await project.removeMember(userId);
+      await project.removeMember(userId!);
 
       // Update metrics
       project.metrics.memberCount = project.members.length;

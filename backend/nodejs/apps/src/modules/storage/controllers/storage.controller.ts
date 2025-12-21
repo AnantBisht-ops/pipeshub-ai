@@ -248,7 +248,7 @@ export class StorageController {
         (await this.keyValueStoreService.get<string>(storageEtcdPaths)) || '{}';
       const { storageType } = JSON.parse(storageConfig);
       const storageVendor = getStorageVendor(storageType ?? '');
-      const documentInfo: Partial<Document> = {
+      const documentInfo: any = {
         documentName,
         documentPath,
         alternateDocumentName,

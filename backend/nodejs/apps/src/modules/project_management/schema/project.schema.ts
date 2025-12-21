@@ -30,6 +30,16 @@ export interface IProject extends Document {
     documentCount: number;
     lastActivityAt: Date;
   };
+  metrics?: {
+    conversationCount: number;
+    documentCount: number;
+    memberCount: number;
+    lastActivityAt: Date;
+  };
+  visibility?: 'private' | 'public' | 'organization';
+  status?: 'active' | 'archived';
+  archivedBy?: Types.ObjectId;
+  archivedAt?: Date;
   createdBy: Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
@@ -134,6 +144,41 @@ const ProjectSchema = new Schema<IProject>(
         type: Date,
         default: Date.now,
       },
+    },
+    metrics: {
+      conversationCount: {
+        type: Number,
+        default: 0,
+      },
+      documentCount: {
+        type: Number,
+        default: 0,
+      },
+      memberCount: {
+        type: Number,
+        default: 0,
+      },
+      lastActivityAt: {
+        type: Date,
+        default: Date.now,
+      },
+    },
+    visibility: {
+      type: String,
+      enum: ['private', 'public', 'organization'],
+      default: 'private',
+    },
+    status: {
+      type: String,
+      enum: ['active', 'archived'],
+      default: 'active',
+    },
+    archivedBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'users',
+    },
+    archivedAt: {
+      type: Date,
     },
     createdBy: {
       type: Schema.Types.ObjectId,
