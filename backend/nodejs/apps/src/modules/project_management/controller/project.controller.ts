@@ -1,5 +1,5 @@
 import { Response, NextFunction } from 'express';
-import { injectable } from 'inversify';
+import { inject, injectable } from 'inversify';
 import { Project } from '../schema/project.schema';
 import { Org } from '../../user_management/schema/org.schema';
 import { Users } from '../../user_management/schema/users.schema';
