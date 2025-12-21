@@ -26,7 +26,6 @@ export class ProjectController {
   constructor(
     @inject('Logger') private logger: Logger
   ) {}
-
   /**
    * Create a new project within an organization
    */
@@ -364,6 +363,17 @@ export class ProjectController {
 
       // Update project
       Object.assign(project, filteredUpdates);
+      
+      if (!project.metrics) {
+        project.metrics = {
+          documentCount: 0,
+          conversationCount: 0,
+          memberCount: project.members?.length || 0,
+          storageUsed: 0,
+          lastActivityAt: new Date()
+        };
+      }
+      
       project.metrics.lastActivityAt = new Date();
       await project.save();
 
@@ -543,6 +553,15 @@ export class ProjectController {
       }
 
       // Update metrics
+      if (!project.metrics) {
+        project.metrics = {
+          documentCount: 0,
+          conversationCount: 0,
+          memberCount: 0,
+          storageUsed: 0,
+          lastActivityAt: new Date()
+        };
+      }
       project.metrics.memberCount = project.members.length;
       project.metrics.lastActivityAt = new Date();
       await project.save();
@@ -678,6 +697,15 @@ export class ProjectController {
       await project.removeMember(userId!);
 
       // Update metrics
+      if (!project.metrics) {
+        project.metrics = {
+          documentCount: 0,
+          conversationCount: 0,
+          memberCount: 0,
+          storageUsed: 0,
+          lastActivityAt: new Date()
+        };
+      }
       project.metrics.memberCount = project.members.length;
       project.metrics.lastActivityAt = new Date();
       await project.save();

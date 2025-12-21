@@ -24,7 +24,6 @@ import {
   NotFoundError,
 } from '../../../libs/errors/http.errors';
 import {
-  Document,
   FilePayload,
   StorageServiceResponse,
   StorageVendor,
