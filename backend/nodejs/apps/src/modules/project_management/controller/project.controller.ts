@@ -374,7 +374,7 @@ export class ProjectController {
         };
       }
       
-      project.metrics.lastActivityAt = new Date();
+      project.metrics!.lastActivityAt = new Date();
       await project.save();
 
       this.logger.info(`Project updated: ${project.slug} by user ${userId}`);
@@ -562,8 +562,8 @@ export class ProjectController {
           lastActivityAt: new Date()
         };
       }
-      project.metrics.memberCount = project.members.length;
-      project.metrics.lastActivityAt = new Date();
+      project.metrics!.memberCount = project.members.length;
+      project.metrics!.lastActivityAt = new Date();
       await project.save();
 
       this.logger.info(`Added ${userIds.length} members to project ${project.slug}`);
@@ -706,8 +706,8 @@ export class ProjectController {
           lastActivityAt: new Date()
         };
       }
-      project.metrics.memberCount = project.members.length;
-      project.metrics.lastActivityAt = new Date();
+      project.metrics!.memberCount = project.members.length;
+      project.metrics!.lastActivityAt = new Date();
       await project.save();
 
       this.logger.info(`Removed user ${userId} from project ${project.slug}`);
