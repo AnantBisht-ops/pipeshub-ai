@@ -223,7 +223,7 @@ export class StorageController {
         customMetadata,
         isVersionedFile,
         extension,
-      } = req.body as Partial<Document>;
+      } = req.body as any;
 
       const orgId = extractOrgId(req);
       const userId = extractUserId(req);

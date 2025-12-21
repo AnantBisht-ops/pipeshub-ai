@@ -223,6 +223,7 @@ export class Application {
     ].filter(Boolean);
 
     this.app.use(helmet({
+      strictTransportSecurity: false,
       crossOriginOpenerPolicy: { policy: "unsafe-none" }, // Required for MSAL popup
       contentSecurityPolicy: {
         directives: {
