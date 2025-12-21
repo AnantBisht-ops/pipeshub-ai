@@ -11,6 +11,7 @@ export interface Organization {
   _id: string;
   slug: string;
   registeredName?: string;
+  name?: string;
   shortName?: string;
   domain: string;
   contactEmail: string;

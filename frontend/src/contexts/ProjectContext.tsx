@@ -14,6 +14,9 @@ interface Project {
     documentCount: number;
     lastActivityAt: Date;
   };
+  settings?: any;
+  isArchived?: boolean;
+  createdAt?: Date;
 }
 
 interface ProjectContextValue {

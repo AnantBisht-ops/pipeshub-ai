@@ -34,7 +34,6 @@ import {
   ListItem,
   ListItemText,
   ListItemAvatar,
-  ListItemSecondary,
   ListItemSecondaryAction,
   Stack
 } from '@mui/material';

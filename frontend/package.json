@@ -64,6 +64,7 @@
     "@iconify-icons/vscode-icons": "^1.2.29",
     "@iconify-json/mdi": "^1.2.3",
     "@iconify/react": "^5.2.1",
+    "@mui/icons-material": "^5.18.0",
     "@mui/lab": "^5.0.0-alpha.173",
     "@mui/material": "^5.16.7",
     "@mui/x-data-grid": "^7.13.0",
