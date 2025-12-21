@@ -36,6 +36,17 @@ export interface IProject extends Document {
   isDeleted: boolean;
   deletedBy?: Types.ObjectId;
   deletedAt?: Date;
+
+  // Instance methods
+  isUserAdmin(userId: string | Types.ObjectId): boolean;
+  isUserMember(userId: string | Types.ObjectId): boolean;
+  addMember(userId: Types.ObjectId | string, role?: 'owner' | 'admin' | 'editor' | 'viewer', addedBy?: Types.ObjectId | string): Promise<void>;
+  updateMemberRole(userId: Types.ObjectId | string, newRole: 'admin' | 'editor' | 'viewer'): Promise<void>;
+  removeMember(userId: Types.ObjectId | string): Promise<void>;
+  promoteToAdmin(userId: Types.ObjectId): void;
+  demoteFromAdmin(userId: Types.ObjectId): void;
+  softDelete(userId: Types.ObjectId): void;
+  restore(): void;
 }
 
 /**
@@ -174,7 +185,7 @@ ProjectSchema.virtual('adminCount').get(function (this: IProject) {
 });
 
 // Middleware to update updatedAt on save
-ProjectSchema.pre('save', function (next) {
+ProjectSchema.pre('save', function (next: any) {
   this.updatedAt = new Date();
   next();
 });

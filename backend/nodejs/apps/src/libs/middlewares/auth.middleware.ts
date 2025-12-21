@@ -118,7 +118,7 @@ export class AuthMiddleware {
       }
 
       const hasAccess =
-        (user.organizations && user.organizations.some((o: any) => o.toString() === orgId)) ||
+        (user.organizations && user.organizations.some((o: any) => o.toString() === orgId.toString())) ||
         org.contactEmail === user.email;
 
       if (!hasAccess) {
@@ -127,7 +127,7 @@ export class AuthMiddleware {
 
       // Add org context to request
       req.org = {
-        orgId: org._id.toString(),
+        orgId: (org as any)._id.toString(),
         orgSlug: org.slug,
         subscription: {
           plan: org.subscription?.plan || 'free',
@@ -151,7 +151,7 @@ export class AuthMiddleware {
   ) {
     try {
       const projectId = req.params.projectId || req.body.projectId || req.query.projectId;
-      const userId = req.user?.userId || (req.user as any)?._id;
+      const userId = (req.user as any)?.userId || (req.user as any)?._id;
 
       if (!projectId) {
         // No project specified, continue without project context
