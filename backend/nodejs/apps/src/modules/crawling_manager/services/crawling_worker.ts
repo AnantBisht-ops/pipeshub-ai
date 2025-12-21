@@ -13,7 +13,7 @@ export class CrawlingWorkerService {
 
   constructor(
     @inject('RedisConfig') redisConfig: RedisConfig,
-    @inject(ConnectorsCrawlingService) private taskService: ICrawlingTaskService,
+    @inject('ConnectorsCrawlingService') private taskService: ICrawlingTaskService,
   ) { 
     this.logger = Logger.getInstance({ service: 'CrawlingWorkerService' });
 
