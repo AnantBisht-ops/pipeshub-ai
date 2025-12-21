@@ -71,7 +71,7 @@ export function createOrgRouter(container: Container) {
     async (_req: Request, res: Response, next: NextFunction) => {
       try {
         const orgController = container.get<OrgController>('OrgController');
-        await orgController.checkOrgExistence(res);
+        await orgController.checkOrgExistence(req, res);
       } catch (error) {
         next(error);
       }
