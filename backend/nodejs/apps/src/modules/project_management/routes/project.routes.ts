@@ -8,19 +8,15 @@ import { IMultiTenantRequest } from '../../../libs/types/multi-tenancy.types';
 
 const router = express.Router();
 
-// Initialize container and dependencies
+// Initialize dependencies manually
 const loggerInstance = new Logger({ service: 'ProjectService' });
-container.bind('Logger').toConstantValue(loggerInstance);
 const authTokenService = new AuthTokenService(
   process.env.JWT_SECRET || 'secret',
   process.env.JWT_REFRESH_SECRET || 'refresh_secret'
 );
-container.bind('AuthTokenService').toConstantValue(authTokenService);
-container.bind(AuthMiddleware).toSelf().inSingletonScope();
-container.bind(ProjectController).toSelf().inSingletonScope();
 
-const authMiddleware = container.get(AuthMiddleware);
-const controller = container.get(ProjectController);
+const authMiddleware = new AuthMiddleware(loggerInstance, authTokenService);
+const controller = new ProjectController(loggerInstance);
 
 // ============= Project CRUD Routes =============
 
