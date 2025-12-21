@@ -1,5 +1,5 @@
 import express from 'express';
-import { Container } from 'inversify';
+
 import { OrganizationController } from '../controller/organization.controller';
 import { AuthMiddleware } from '../../../libs/middlewares/auth.middleware';
 import { Logger } from '../../../libs/services/logger.service';
@@ -8,22 +8,20 @@ import { AuthTokenService } from '../../../libs/services/authtoken.service';
 const router = express.Router();
 
 // Initialize container and dependencies
-const container = new Container();
-container.bind('Logger').to(Logger).inSingletonScope();
-container.bind('AuthTokenService').to(AuthTokenService).inSingletonScope();
-container.bind(AuthMiddleware).toSelf().inSingletonScope();
-container.bind(OrganizationController).toSelf().inSingletonScope();
+// Initialize dependencies manually
+const loggerInstance = new Logger({ service: 'OrganizationService' });
 
-const authMiddleware = container.get(AuthMiddleware);
+const authTokenService = new AuthTokenService(
+  process.env.JWT_SECRET || 'secret',
+  process.env.JWT_REFRESH_SECRET || 'refresh_secret'
+);
+
+const authMiddleware = new AuthMiddleware(loggerInstance, authTokenService);
+const controller = new OrganizationController();
 
 // Get controller instance from DI container
 const getController = () => {
-  try {
-    return container.get<OrganizationController>(OrganizationController);
-  } catch (error) {
-    // If not in container, create new instance
-    return new OrganizationController();
-  }
+    return controller;
 };
 
 // Get user's organizations
