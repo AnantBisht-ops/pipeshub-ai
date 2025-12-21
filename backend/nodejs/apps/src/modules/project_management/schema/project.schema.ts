@@ -1,6 +1,15 @@
 import mongoose, { Schema, Document, Types } from 'mongoose';
 
 /**
+ * Interface for Project member
+ */
+export interface IProjectMember {
+  userId: Types.ObjectId;
+  role: 'owner' | 'admin' | 'editor' | 'viewer';
+  joinedAt: Date;
+}
+
+/**
  * Interface for Project document in MongoDB
  */
 export interface IProject extends Document {
@@ -9,7 +18,7 @@ export interface IProject extends Document {
   orgId: Types.ObjectId;
   name: string;
   description?: string;
-  members: Types.ObjectId[];
+  members: IProjectMember[];
   admins: Types.ObjectId[];
   settings: {
     isPublic: boolean;
@@ -62,9 +71,21 @@ const ProjectSchema = new Schema<IProject>(
     },
     members: [
       {
-        type: Schema.Types.ObjectId,
-        ref: 'users',
-      },
+        userId: {
+          type: Schema.Types.ObjectId,
+          ref: 'users',
+          required: true
+        },
+        role: {
+          type: String,
+          enum: ['owner', 'admin', 'editor', 'viewer'],
+          default: 'viewer'
+        },
+        joinedAt: {
+          type: Date,
+          default: Date.now
+        }
+      }
     ],
     admins: [
       {

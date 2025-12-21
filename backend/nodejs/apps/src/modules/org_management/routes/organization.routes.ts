@@ -1,13 +1,20 @@
 import express from 'express';
 import { Container } from 'inversify';
 import { OrganizationController } from '../controller/organization.controller';
-import { authenticate } from '../../../libs/middlewares/auth.middleware';
+import { AuthMiddleware } from '../../../libs/middlewares/auth.middleware';
+import { Logger } from '../../../libs/services/logger.service';
+import { AuthTokenService } from '../../../libs/services/authtoken.service';
 
 const router = express.Router();
 
 // Initialize container and dependencies
 const container = new Container();
+container.bind('Logger').to(Logger).inSingletonScope();
+container.bind('AuthTokenService').to(AuthTokenService).inSingletonScope();
+container.bind(AuthMiddleware).toSelf().inSingletonScope();
 container.bind(OrganizationController).toSelf().inSingletonScope();
+
+const authMiddleware = container.get(AuthMiddleware);
 
 // Get controller instance from DI container
 const getController = () => {
@@ -21,7 +28,7 @@ const getController = () => {
 
 // Get user's organizations
 router.get('/my-organizations',
-  authenticate,
+  authMiddleware.authenticate.bind(authMiddleware),
   async (req, res, next) => {
     const controller = getController();
     await controller.getUserOrganizations(req as any, res, next);
@@ -30,7 +37,7 @@ router.get('/my-organizations',
 
 // Switch organization
 router.post('/switch/:orgId',
-  authenticate,
+  authMiddleware.authenticate.bind(authMiddleware),
   async (req, res, next) => {
     const controller = getController();
     await controller.switchOrganization(req as any, res, next);
@@ -39,7 +46,7 @@ router.post('/switch/:orgId',
 
 // Create new organization
 router.post('/create',
-  authenticate,
+  authMiddleware.authenticate.bind(authMiddleware),
   async (req, res, next) => {
     const controller = getController();
     await controller.createOrganization(req as any, res, next);
@@ -48,7 +55,7 @@ router.post('/create',
 
 // Get organization details
 router.get('/:orgId',
-  authenticate,
+  authMiddleware.authenticate.bind(authMiddleware),
   async (req, res, next) => {
     const controller = getController();
     await controller.getOrganizationDetails(req as any, res, next);
@@ -57,7 +64,7 @@ router.get('/:orgId',
 
 // Update organization
 router.patch('/:orgId',
-  authenticate,
+  authMiddleware.authenticate.bind(authMiddleware),
   async (req, res, next) => {
     const controller = getController();
     await controller.updateOrganization(req as any, res, next);
@@ -66,7 +73,7 @@ router.patch('/:orgId',
 
 // Delete organization
 router.delete('/:orgId',
-  authenticate,
+  authMiddleware.authenticate.bind(authMiddleware),
   async (req, res, next) => {
     const controller = getController();
     await controller.deleteOrganization(req as any, res, next);
