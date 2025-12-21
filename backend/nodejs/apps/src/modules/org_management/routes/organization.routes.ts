@@ -1,9 +1,13 @@
 import express from 'express';
+import { Container } from 'inversify';
 import { OrganizationController } from '../controller/organization.controller';
 import { authenticate } from '../../../libs/middlewares/auth.middleware';
-import { container } from '../../../inversify.config';
 
 const router = express.Router();
+
+// Initialize container and dependencies
+const container = new Container();
+container.bind(OrganizationController).toSelf().inSingletonScope();
 
 // Get controller instance from DI container
 const getController = () => {
