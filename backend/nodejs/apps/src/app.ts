@@ -230,6 +230,7 @@ export class Application {
       crossOriginOpenerPolicy: { policy: "unsafe-none" }, // Required for MSAL popup
       contentSecurityPolicy: {
         directives: {
+          upgradeInsecureRequests: null, // Disable HTTPS upgrade for HTTP-only environments
           defaultSrc: ["'self'"],
           scriptSrc: [
             "'self'",
