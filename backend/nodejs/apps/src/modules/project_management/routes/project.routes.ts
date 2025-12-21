@@ -10,7 +10,8 @@ const router = express.Router();
 
 // Initialize container and dependencies
 const container = new Container();
-container.bind('Logger').to(Logger).inSingletonScope();
+const loggerInstance = new Logger({ service: 'ProjectService' });
+container.bind('Logger').toConstantValue(loggerInstance);
 container.bind('AuthTokenService').to(AuthTokenService).inSingletonScope();
 container.bind(AuthMiddleware).toSelf().inSingletonScope();
 container.bind(ProjectController).toSelf().inSingletonScope();
