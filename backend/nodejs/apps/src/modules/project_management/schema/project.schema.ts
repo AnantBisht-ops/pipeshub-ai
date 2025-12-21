@@ -34,6 +34,7 @@ export interface IProject extends Document {
     conversationCount: number;
     documentCount: number;
     memberCount: number;
+    storageUsed: number;
     lastActivityAt: Date;
   };
   visibility?: 'private' | 'public' | 'organization';
@@ -155,6 +156,10 @@ const ProjectSchema = new Schema<IProject>(
         default: 0,
       },
       memberCount: {
+        type: Number,
+        default: 0,
+      },
+      storageUsed: {
         type: Number,
         default: 0,
       },
