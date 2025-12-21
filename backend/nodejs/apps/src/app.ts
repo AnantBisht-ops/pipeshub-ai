@@ -124,7 +124,10 @@ export class Application {
       );
 
       this.mailServiceContainer =
-        await MailServiceContainer.initialize(appConfig);
+        await MailServiceContainer.initialize(
+          configurationManagerConfig,
+          appConfig,
+        );
 
       this.notificationContainer =
         await NotificationContainer.initialize(appConfig);
