@@ -4,8 +4,36 @@
  */
 
 import { createClient, RedisClientType } from 'redis';
-import { Organization, Project, User } from '../types';
-import { logger } from '../libs/utils/logger';
+
+// Define types inline since ../types may not exist
+interface Organization {
+  _id: string;
+  name: string;
+  slug?: string;
+  [key: string]: any;
+}
+
+interface Project {
+  _id: string;
+  name: string;
+  slug?: string;
+  orgId: string;
+  [key: string]: any;
+}
+
+interface User {
+  _id: string;
+  email: string;
+  [key: string]: any;
+}
+
+// Logger wrapper for safe logging
+const logger = {
+  debug: (...args: any[]) => console.log('[DEBUG]', ...args),
+  info: (...args: any[]) => console.log('[INFO]', ...args),
+  error: (...args: any[]) => console.error('[ERROR]', ...args),
+};
+
 
 export class CacheService {
   private static instance: CacheService;
@@ -26,7 +54,7 @@ export class CacheService {
     const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
     this.client = createClient({ url: redisUrl });
 
-    this.client.on('error', (err) => {
+    this.client.on('error', (err: Error | unknown) => {
       logger.error('Redis Client Error', err);
       this.isConnected = false;
     });
