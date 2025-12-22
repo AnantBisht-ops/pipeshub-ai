@@ -49,6 +49,7 @@ import {
   updateAgentPermissions,
   getAgentPermissions,
   regenerateAgentAnswers,
+  executeMCPTool,
 } from '../controller/es_controller';
 import { ValidationMiddleware } from '../../../libs/middlewares/validation.middleware';
 import {
@@ -582,6 +583,18 @@ export function createAgentConversationalRouter(container: Container): Router {
     authMiddleware.authenticate,
     metricsMiddleware(container),
     getAvailableTools(appConfig),
+  );
+
+  /**
+   * @route POST /api/v1/agent/mcp/execute
+   * @desc Execute MCP tool for Python backend
+   * @access Internal - From Python Backend
+   */
+  router.post(
+    '/mcp/execute',
+    authMiddleware.authenticate,
+    metricsMiddleware(container),
+    executeMCPTool(appConfig),
   );
 
   router.get(
