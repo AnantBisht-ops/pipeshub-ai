@@ -14,6 +14,7 @@ import { createUserGroupRouter } from './modules/user_management/routes/userGrou
 import { createOrgRouter } from './modules/user_management/routes/org.routes';
 import organizationRoutes from './modules/org_management/routes/organization.routes';
 import projectRoutes from './modules/project_management/routes/project.routes';
+import desktopAuthRoutes from './modules/desktop_auth/routes/desktop-auth.routes';
 import {
   createConversationalRouter,
   createSemanticSearchRouter,
@@ -310,6 +311,7 @@ export class Application {
     this.app.use('/api/v1/org', createOrgRouter(this.entityManagerContainer));
     this.app.use('/api/v1/organizations', organizationRoutes);
     this.app.use('/api/v1/projects', projectRoutes);
+    this.app.use('/api/v1/desktop/auth', desktopAuthRoutes);
 
     this.app.use('/api/v1/saml', createSamlRouter(this.authServiceContainer, this.entityManagerContainer));
 
