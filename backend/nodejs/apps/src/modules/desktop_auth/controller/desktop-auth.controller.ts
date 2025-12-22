@@ -109,6 +109,7 @@ export class DesktopAuthController {
         userId: user._id,
         orgId: org._id,
         hashedPassword,
+        ipAddress: req.ip || '0.0.0.0',
         isDeleted: false
       });
 
