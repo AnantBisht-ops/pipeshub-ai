@@ -1296,173 +1296,15 @@ export class UserAccountController {
           this.logger.info('user updated');
         }
 
-        // Get organization details
-        const org = await Org.findOne({ _id: user.orgId, isDeleted: false });
-        if (!org) {
-          throw new NotFoundError('Organization not found');
-        }
-
-        // Prepare desktop callback payload
-        const refreshToken = refreshTokenJwtGenerator(
-          user._id,
-          user.orgId,
-          this.config.scopedJwtSecret,
-        );
-
-        const callbackPayload = {
+        res.status(200).json({
+          message: 'Fully authenticated',
           accessToken,
-          refreshToken,
-          expiresIn: 3600,
-          user: {
-            id: user._id,
-            email: user.email,
-            fullName: user.fullName,
-            firstName: user.firstName,
-            lastName: user.lastName,
-          },
-          organizations: [
-            {
-              id: org._id,
-              slug: org.slug,
-              name: org.shortName || org.registeredName,
-              registeredName: org.registeredName,
-              accountType: org.accountType,
-              role: 'admin',
-            },
-          ],
-          currentOrgId: user.orgId,
-          isNewUser: !user.hasLoggedIn,
-        };
-
-        // Generate desktop callback JWT
-        const { desktopCallbackJwtGenerator } = await import(
-          '../../../libs/utils/createJwt'
-        );
-        const callbackToken = desktopCallbackJwtGenerator(
-          callbackPayload,
-          this.config.jwtSecret,
-        );
-
-        // Build desktop callback URL
-        const callbackUrl = `openanalyst://auth/callback?token=${callbackToken}`;
-
-        // Return HTML page with auto-redirect
-        const html = `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Redirecting to OpenAnalyst</title>
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
-      padding: 20px;
-    }
-    .container {
-      background: white;
-      border-radius: 16px;
-      padding: 48px 32px;
-      text-align: center;
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-      max-width: 400px;
-      width: 100%;
-    }
-    .logo {
-      width: 80px;
-      height: 80px;
-      margin: 0 auto 24px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      border-radius: 20px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 36px;
-      font-weight: bold;
-      color: white;
-    }
-    h1 {
-      font-size: 24px;
-      color: #1a202c;
-      margin-bottom: 12px;
-      font-weight: 600;
-    }
-    p {
-      color: #718096;
-      font-size: 16px;
-      margin-bottom: 32px;
-      line-height: 1.5;
-    }
-    .spinner {
-      width: 48px;
-      height: 48px;
-      margin: 0 auto 24px;
-      border: 4px solid #e2e8f0;
-      border-top: 4px solid #667eea;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-    }
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-    .manual-link {
-      display: inline-block;
-      margin-top: 24px;
-      padding: 12px 24px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      text-decoration: none;
-      border-radius: 8px;
-      font-weight: 500;
-      transition: transform 0.2s, box-shadow 0.2s;
-    }
-    .manual-link:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 16px rgba(102, 126, 234, 0.4);
-    }
-    .info {
-      margin-top: 24px;
-      padding: 16px;
-      background: #f7fafc;
-      border-radius: 8px;
-      font-size: 14px;
-      color: #4a5568;
-    }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="logo">OA</div>
-    <h1>Redirecting to OpenAnalyst</h1>
-    <p>Please wait while we redirect you to the OpenAnalyst desktop application...</p>
-    <div class="spinner"></div>
-    <div class="info">
-      If the app doesn't open automatically:
-      <a href="${callbackUrl}" class="manual-link">Click here to open OpenAnalyst</a>
-    </div>
-  </div>
-  <script>
-    window.location.href = '${callbackUrl}';
-    setTimeout(function() {
-      document.querySelector('.info').style.display = 'block';
-    }, 3000);
-  </script>
-</body>
-</html>`;
-
-        res.setHeader('Content-Type', 'text/html');
-        res.status(200).send(html);
+          refreshToken: refreshTokenJwtGenerator(
+            user._id,
+            user.orgId,
+            this.config.scopedJwtSecret,
+          ),
+        });
       }
     } catch (error) {
       next(error);
@@ -1516,6 +1358,174 @@ export class UserAccountController {
       next(error);
     }
   };
+
+  async desktopAuthCallback(
+    req: AuthSessionRequest,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
+    try {
+      // This endpoint handles the desktop OAuth-style callback
+      // It takes the session token and generates the desktop redirect
+
+      if (!req.user) {
+        throw new UnauthorizedError('Not authenticated');
+      }
+
+      const userId = req.user.userId;
+      const orgId = req.user.orgId;
+
+      // Get user data
+      const userResult = await this.iamService.getUserById(
+        userId,
+        iamUserLookupJwtGenerator(userId, orgId, this.config.scopedJwtSecret),
+      );
+
+      if (userResult.statusCode !== 200) {
+        throw new NotFoundError('User not found');
+      }
+
+      const user = userResult.data;
+
+      // Get organization
+      const org = await Org.findOne({ _id: orgId, isDeleted: false });
+      if (!org) {
+        throw new NotFoundError('Organization not found');
+      }
+
+      // Generate tokens
+      const accessToken = await generateAuthToken(user, this.config.jwtSecret);
+      const refreshToken = refreshTokenJwtGenerator(userId, orgId, this.config.scopedJwtSecret);
+
+      // Prepare callback payload
+      const callbackPayload = {
+        accessToken,
+        refreshToken,
+        expiresIn: 3600,
+        user: {
+          id: user._id,
+          email: user.email,
+          fullName: user.fullName,
+          firstName: user.firstName,
+          lastName: user.lastName,
+        },
+        organizations: [
+          {
+            id: org._id,
+            slug: org.slug,
+            name: org.shortName || org.registeredName,
+            registeredName: org.registeredName,
+            accountType: org.accountType,
+            role: 'admin',
+          },
+        ],
+        currentOrgId: orgId,
+        isNewUser: !user.hasLoggedIn,
+      };
+
+      const { desktopCallbackJwtGenerator } = await import('../../../libs/utils/createJwt');
+      const callbackToken = desktopCallbackJwtGenerator(callbackPayload, this.config.jwtSecret);
+      const callbackUrl = `openanalyst://auth/callback?token=${callbackToken}`;
+
+      // Return HTML redirect page
+      const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Redirecting to OpenAnalyst</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .container {
+      background: white;
+      border-radius: 16px;
+      padding: 48px 32px;
+      text-align: center;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      max-width: 400px;
+      width: 100%;
+    }
+    .logo {
+      width: 80px;
+      height: 80px;
+      margin: 0 auto 24px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 36px;
+      font-weight: bold;
+      color: white;
+    }
+    h1 { font-size: 24px; color: #1a202c; margin-bottom: 12px; font-weight: 600; }
+    p { color: #718096; font-size: 16px; margin-bottom: 32px; line-height: 1.5; }
+    .spinner {
+      width: 48px;
+      height: 48px;
+      margin: 0 auto 24px;
+      border: 4px solid #e2e8f0;
+      border-top: 4px solid #667eea;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .manual-link {
+      display: inline-block;
+      margin-top: 24px;
+      padding: 12px 24px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      text-decoration: none;
+      border-radius: 8px;
+      font-weight: 500;
+    }
+    .info {
+      margin-top: 24px;
+      padding: 16px;
+      background: #f7fafc;
+      border-radius: 8px;
+      font-size: 14px;
+      color: #4a5568;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo">OA</div>
+    <h1>Redirecting to OpenAnalyst</h1>
+    <p>Please wait while we redirect you to the OpenAnalyst desktop application...</p>
+    <div class="spinner"></div>
+    <div class="info">
+      If the app doesn't open automatically:
+      <a href="${callbackUrl}" class="manual-link">Click here to open OpenAnalyst</a>
+    </div>
+  </div>
+  <script>
+    window.location.href = '${callbackUrl}';
+  </script>
+</body>
+</html>`;
+
+      res.setHeader('Content-Type', 'text/html');
+      res.status(200).send(html);
+    } catch (error) {
+      next(error);
+    }
+  }
 
   async exchangeOAuthToken(
     req: Request,
