@@ -7,6 +7,7 @@ import downIcon from '@iconify-icons/mdi/chevron-down';
 import { useLocation, useNavigate } from 'react-router';
 import shieldLockIcon from '@iconify-icons/mdi/shield-lock';
 import linkVariantIcon from '@iconify-icons/mdi/link-variant';
+import cloudSyncIcon from '@iconify-icons/mdi/cloud-sync-outline';
 import accountGroupIcon from '@iconify-icons/mdi/account-group';
 import officeBuildingIcon from '@iconify-icons/mdi/office-building';
 import accountServiceIcon from '@iconify-icons/mdi/account-service-outline';
@@ -69,6 +70,11 @@ export default function Sidebar() {
       name: 'Connectors',
       icon: linkVariantIcon,
       path: `${baseUrl}/settings/connector`,
+    },
+    {
+      name: 'MCP',
+      icon: cloudSyncIcon,
+      path: `${baseUrl}/settings/mcp`,
     },
     {
       name: 'Services',

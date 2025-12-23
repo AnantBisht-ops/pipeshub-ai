@@ -29,6 +29,7 @@ class ChatQuery(BaseModel):
     retrievalMode: Optional[str] = "HYBRID"
     systemPrompt: Optional[str] = None
     tools: Optional[List[str]] = None
+    mcpTools: Optional[List[Dict]] = None  # New field for MCP tools
     chatMode: Optional[str] = "quick"
     modelKey: Optional[str] = None
     modelName: Optional[str] = None

@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test MCP API</title>
+</head>
+<body>
+    <h1>MCP API Test</h1>
+    <button onclick="testAPI()">Test API Call</button>
+    <button onclick="setMockToken()">Set Mock Token</button>
+    <button onclick="checkStorage()">Check Storage</button>
+    <pre id="output"></pre>
+
+    <script>
+        function checkStorage() {
+            const output = document.getElementById('output');
+            output.textContent = 'LocalStorage contents:\n';
+
+            // Check for tokens
+            const possibleTokenKeys = ['accessToken', 'pipeshub_token', 'authToken', 'jwt_token'];
+            possibleTokenKeys.forEach(key => {
+                const value = localStorage.getItem(key);
+                output.textContent += `${key}: ${value ? 'Found (length: ' + value.length + ')' : 'Not found'}\n`;
+            });
+
+            // Check for user data
+            const user = localStorage.getItem('user');
+            if (user) {
+                try {
+                    const userData = JSON.parse(user);
+                    output.textContent += `\nUser data found: ${JSON.stringify(userData, null, 2)}\n`;
+                } catch (e) {
+                    output.textContent += `\nUser data exists but invalid JSON\n`;
+                }
+            } else {
+                output.textContent += `\nNo user data found\n`;
+            }
+
+            // List all keys
+            output.textContent += '\nAll localStorage keys:\n';
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                output.textContent += `- ${key}\n`;
+            }
+        }
+
+        function setMockToken() {
+            // Set a mock JWT token for testing
+            const mockToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IlRlc3QgVXNlciIsImlhdCI6MTUxNjIzOTAyMn0.test';
+            localStorage.setItem('accessToken', mockToken);
+            alert('Mock token set in accessToken');
+            checkStorage();
+        }
+
+        async function testAPI() {
+            const output = document.getElementById('output');
+
+            // Check for token
+            const token = localStorage.getItem('accessToken') ||
+                         localStorage.getItem('pipeshub_token') ||
+                         localStorage.getItem('authToken') ||
+                         localStorage.getItem('jwt_token');
+
+            if (!token) {
+                output.textContent = 'No auth token found! Please log in or set a mock token.\n';
+                return;
+            }
+
+            try {
+                output.textContent = 'Testing API call to MCP service...\n';
+
+                const response = await fetch('https://mcp.openanalyst.com/api/integrations', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                output.textContent += `Response status: ${response.status} ${response.statusText}\n`;
+
+                const text = await response.text();
+                output.textContent += `Response body: ${text}\n`;
+
+                if (response.ok) {
+                    try {
+                        const data = JSON.parse(text);
+                        output.textContent += `\nParsed data: ${JSON.stringify(data, null, 2)}\n`;
+                    } catch (e) {
+                        output.textContent += `\nCould not parse as JSON\n`;
+                    }
+                }
+            } catch (error) {
+                output.textContent += `Error: ${error.message}\n`;
+            }
+        }
+
+        // Check storage on load
+        window.onload = checkStorage;
+    </script>
+</body>
+</html>

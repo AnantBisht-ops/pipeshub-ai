@@ -1,0 +1,294 @@
+/**
+ * MCP Integration Example for QnA ChatBot
+ *
+ * This file demonstrates how to integrate MCP tools with the ChatBot
+ * to enable AI agents to perform actions on behalf of users
+ */
+
+import { mcpAgentService } from '../../services/mcp-agent.service';
+import OpenAI from 'openai';
+
+// Initialize OpenAI client (or your LLM of choice)
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+/**
+ * Example ChatBot handler with MCP integration
+ */
+export class McpEnabledChatBot {
+  /**
+   * Process a user message with MCP tool capabilities
+   *
+   * @param userId - The user's ID from authentication
+   * @param message - The user's message/request
+   * @returns The ChatBot's response
+   */
+  async processUserMessage(userId: string, message: string): Promise<string> {
+    try {
+      // Step 1: Get available MCP tools for the user
+      console.log(`[ChatBot] Getting MCP tools for user ${userId}`);
+      const mcpTools = await mcpAgentService.getToolsForUser(userId);
+
+      // Convert to OpenAI function format
+      const functions = mcpAgentService.convertToOpenAIFunctions(mcpTools);
+
+      // Step 2: Send to LLM with available tools
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4',
+        messages: [
+          {
+            role: 'system',
+            content: `You are a helpful assistant that can perform actions for users.
+            You have access to their connected services (Gmail, Slack) via function calls.
+            Always confirm actions before executing them.`,
+          },
+          {
+            role: 'user',
+            content: message,
+          },
+        ],
+        tools: functions.length > 0 ? functions : undefined,
+        tool_choice: functions.length > 0 ? 'auto' : undefined,
+      });
+
+      const responseMessage = completion.choices[0].message;
+
+      // Step 3: Check if LLM wants to call a function
+      if (responseMessage.tool_calls && responseMessage.tool_calls.length > 0) {
+        const toolCall = responseMessage.tool_calls[0];
+        const functionName = toolCall.function.name;
+        const functionArgs = JSON.parse(toolCall.function.arguments);
+
+        console.log(`[ChatBot] LLM wants to execute: ${functionName}`);
+
+        // Step 4: Execute the MCP action
+        const result = await mcpAgentService.executeUserAction(
+          userId,
+          functionName,
+          functionArgs
+        );
+
+        // Step 5: Return result to user
+        if (result.success) {
+          return this.formatSuccessResponse(functionName, result);
+        } else {
+          return this.formatErrorResponse(functionName, result.error);
+        }
+      }
+
+      // No function call needed, return LLM's direct response
+      return responseMessage.content || 'I understand your request.';
+    } catch (error: any) {
+      console.error('[ChatBot] Error processing message:', error);
+      return 'I encountered an error processing your request. Please try again.';
+    }
+  }
+
+  /**
+   * Format success response based on action type
+   */
+  private formatSuccessResponse(action: string, result: any): string {
+    const responses: Record<string, string> = {
+      GMAIL_SEND_EMAIL: '✅ Email sent successfully!',
+      GMAIL_FETCH_EMAILS: `📧 Found ${result.result?.length || 0} emails`,
+      GMAIL_CREATE_EMAIL_DRAFT: '📝 Draft created in your Gmail',
+      SLACK_SENDS_A_MESSAGE_TO_A_SLACK_CHANNEL: '✅ Message posted to Slack',
+      SLACK_FETCHES_CONVERSATION_HISTORY: `💬 Retrieved ${result.result?.messages?.length || 0} messages`,
+    };
+
+    return responses[action] || '✅ Action completed successfully!';
+  }
+
+  /**
+   * Format error response
+   */
+  private formatErrorResponse(action: string, error: string | null): string {
+    if (error?.includes('not have gmail connected')) {
+      return '❌ Please connect your Gmail account first in Settings → MCP';
+    }
+    if (error?.includes('not have slack connected')) {
+      return '❌ Please connect your Slack account first in Settings → MCP';
+    }
+    return `❌ Failed to complete action: ${error || 'Unknown error'}`;
+  }
+
+  /**
+   * Check if user has required integrations for specific actions
+   */
+  async checkUserCapabilities(userId: string): Promise<{
+    hasGmail: boolean;
+    hasSlack: boolean;
+    availableActions: string[];
+  }> {
+    const tools = await mcpAgentService.getToolsForUser(userId);
+
+    const hasGmail = tools.some(t => t.provider === 'gmail');
+    const hasSlack = tools.some(t => t.provider === 'slack');
+    const availableActions = tools.map(t => t.name);
+
+    return {
+      hasGmail,
+      hasSlack,
+      availableActions,
+    };
+  }
+
+  /**
+   * Provide suggestions based on user's connected integrations
+   */
+  async getSuggestions(userId: string): Promise<string[]> {
+    const capabilities = await this.checkUserCapabilities(userId);
+    const suggestions: string[] = [];
+
+    if (capabilities.hasGmail) {
+      suggestions.push(
+        'Send an email to someone',
+        'Check my unread emails',
+        'Search for emails from a specific person',
+        'Create a draft email'
+      );
+    }
+
+    if (capabilities.hasSlack) {
+      suggestions.push(
+        'Post a message to a Slack channel',
+        'Check recent messages in a channel',
+        'Search for Slack messages'
+      );
+    }
+
+    if (!capabilities.hasGmail && !capabilities.hasSlack) {
+      suggestions.push(
+        'Connect your Gmail or Slack account in Settings → MCP to unlock more features'
+      );
+    }
+
+    return suggestions;
+  }
+}
+
+/**
+ * Example usage in QnA endpoint
+ */
+export async function handleChatBotMessage(req: any, res: any) {
+  const { message } = req.body;
+  const userId = req.user?.id; // Get user ID from authentication
+
+  if (!userId) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+
+  const chatBot = new McpEnabledChatBot();
+
+  try {
+    // Process message with MCP capabilities
+    const response = await chatBot.processUserMessage(userId, message);
+
+    // Get suggestions for user
+    const suggestions = await chatBot.getSuggestions(userId);
+
+    return res.json({
+      response,
+      suggestions,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error: any) {
+    console.error('[API] ChatBot error:', error);
+    return res.status(500).json({
+      error: 'Failed to process message',
+      message: error.message,
+    });
+  }
+}
+
+/**
+ * Example specific action handlers
+ */
+export class McpActionHandlers {
+  /**
+   * Handle email sending request
+   */
+  static async handleEmailRequest(
+    userId: string,
+    recipient: string,
+    subject: string,
+    body: string
+  ): Promise<{ success: boolean; message: string }> {
+    // Check if user has Gmail connected
+    const hasGmail = await mcpAgentService.isActionAvailable(userId, 'GMAIL_SEND_EMAIL');
+
+    if (!hasGmail) {
+      return {
+        success: false,
+        message: 'Please connect your Gmail account first in Settings → MCP',
+      };
+    }
+
+    // Send the email
+    const result = await mcpAgentService.sendEmail(userId, recipient, subject, body);
+
+    return {
+      success: result.success,
+      message: result.success
+        ? `✅ Email sent to ${recipient}`
+        : `❌ Failed to send email: ${result.error}`,
+    };
+  }
+
+  /**
+   * Handle Slack message request
+   */
+  static async handleSlackRequest(
+    userId: string,
+    channel: string,
+    message: string
+  ): Promise<{ success: boolean; message: string }> {
+    // Check if user has Slack connected
+    const hasSlack = await mcpAgentService.isActionAvailable(
+      userId,
+      'SLACK_SENDS_A_MESSAGE_TO_A_SLACK_CHANNEL'
+    );
+
+    if (!hasSlack) {
+      return {
+        success: false,
+        message: 'Please connect your Slack account first in Settings → MCP',
+      };
+    }
+
+    // Send the message
+    const result = await mcpAgentService.sendSlackMessage(userId, channel, message);
+
+    return {
+      success: result.success,
+      message: result.success
+        ? `✅ Message posted to ${channel}`
+        : `❌ Failed to post message: ${result.error}`,
+    };
+  }
+
+  /**
+   * Handle email fetch request
+   */
+  static async handleEmailFetchRequest(
+    userId: string,
+    query?: string,
+    maxResults: number = 10
+  ): Promise<{ success: boolean; emails?: any[]; message: string }> {
+    const result = await mcpAgentService.fetchEmails(userId, query, maxResults);
+
+    if (result.success) {
+      return {
+        success: true,
+        emails: result.result,
+        message: `Found ${result.result?.length || 0} emails`,
+      };
+    }
+
+    return {
+      success: false,
+      message: `Failed to fetch emails: ${result.error}`,
+    };
+  }
+}

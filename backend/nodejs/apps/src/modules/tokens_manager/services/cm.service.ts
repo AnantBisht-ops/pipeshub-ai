@@ -242,12 +242,14 @@ export class ConfigService {
 
   // Qdrant Configuration
   public async getQdrantConfig(): Promise<QdrantConfig> {
-    return this.getEncryptedConfig<QdrantConfig>(configPaths.db.qdrant, {
+    // For local development, always use environment variables instead of ETCD
+    // This avoids hostname issues when switching between Docker and local development
+    return {
       apiKey: process.env.QDRANT_API_KEY!,
       host: process.env.QDRANT_HOST || 'localhost',
       port: parseInt(process.env.QDRANT_PORT || '6333', 10),
       grpcPort: parseInt(process.env.QDRANT_GRPC_PORT || '6334', 10),
-    });
+    };
   }
 
   // Arango Configuration

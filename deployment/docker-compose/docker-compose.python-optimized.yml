@@ -1,0 +1,123 @@
+version: '3.8'
+
+services:
+  # Build base image with all dependencies (shared by all services)
+  python-base:
+    build:
+      context: ../../backend/python
+      dockerfile: Dockerfile.services
+    image: pipeshub-python:latest
+    command: echo "Base image built successfully"
+
+  # Connector Service - Port 8088
+  connector-service:
+    image: pipeshub-python:latest
+    container_name: connector-service
+    depends_on:
+      - python-base
+    ports:
+      - "8088:8088"
+    environment:
+      - SERVICE_NAME=connector
+      - CONNECTOR_SERVICE_PORT=8088
+      # Infrastructure connections (using your .env values)
+      - ETCD_URL=http://host.docker.internal:2379
+      - ETCD_HOST=host.docker.internal
+      - ARANGO_URL=http://host.docker.internal:8529
+      - ARANGO_DB_NAME=es
+      - ARANGO_USERNAME=root
+      - ARANGO_PASSWORD=F6ABRCb9qbRK1MhXNfkk
+      - KAFKA_BROKERS=host.docker.internal:9092
+      - REDIS_HOST=host.docker.internal
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=ARQ0yNS7uT70WPZr8yXC
+      - REDIS_URL=redis://:ARQ0yNS7uT70WPZr8yXC@host.docker.internal:6379
+      - MONGO_URI=mongodb://admin:uCmG7ABHKIKPX6MVnlFC@host.docker.internal:27017/?authSource=admin
+      - MONGO_DB_NAME=es
+      - QDRANT_HOST=host.docker.internal
+      - QDRANT_API_KEY=UsoNzWEQHDrNOxDSp4z4zRyQ
+      - QDRANT_GRPC_PORT=6334
+      - QDRANT_PORT=6333
+      - OLLAMA_API_URL=http://host.docker.internal:11434
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+    command: python -m app.connectors_main
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # Indexing Service - Port 8091
+  indexing-service:
+    image: pipeshub-python:latest
+    container_name: indexing-service
+    depends_on:
+      - python-base
+      - connector-service
+    ports:
+      - "8091:8091"
+    environment:
+      - SERVICE_NAME=indexing
+      - INDEXING_SERVICE_PORT=8091
+      - CONNECTOR_BACKEND=http://connector-service:8088
+      # Same infrastructure connections
+      - ETCD_URL=http://host.docker.internal:2379
+      - ETCD_HOST=host.docker.internal
+      - ARANGO_URL=http://host.docker.internal:8529
+      - ARANGO_DB_NAME=es
+      - ARANGO_USERNAME=root
+      - ARANGO_PASSWORD=F6ABRCb9qbRK1MhXNfkk
+      - KAFKA_BROKERS=host.docker.internal:9092
+      - REDIS_HOST=host.docker.internal
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=ARQ0yNS7uT70WPZr8yXC
+      - REDIS_URL=redis://:ARQ0yNS7uT70WPZr8yXC@host.docker.internal:6379
+      - MONGO_URI=mongodb://admin:uCmG7ABHKIKPX6MVnlFC@host.docker.internal:27017/?authSource=admin
+      - MONGO_DB_NAME=es
+      - QDRANT_HOST=host.docker.internal
+      - QDRANT_API_KEY=UsoNzWEQHDrNOxDSp4z4zRyQ
+      - QDRANT_GRPC_PORT=6334
+      - QDRANT_PORT=6333
+      - OLLAMA_API_URL=http://host.docker.internal:11434
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+    command: python -m app.indexing_main
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # Query/AI Service - Port 8000
+  query-service:
+    image: pipeshub-python:latest
+    container_name: query-service
+    depends_on:
+      - python-base
+      - connector-service
+    ports:
+      - "8000:8000"
+    environment:
+      - SERVICE_NAME=query
+      - QUERY_SERVICE_PORT=8000
+      - CONNECTOR_BACKEND=http://connector-service:8088
+      - INDEXING_BACKEND=http://indexing-service:8091
+      # Same infrastructure connections
+      - ETCD_URL=http://host.docker.internal:2379
+      - ETCD_HOST=host.docker.internal
+      - ARANGO_URL=http://host.docker.internal:8529
+      - ARANGO_DB_NAME=es
+      - ARANGO_USERNAME=root
+      - ARANGO_PASSWORD=F6ABRCb9qbRK1MhXNfkk
+      - KAFKA_BROKERS=host.docker.internal:9092
+      - REDIS_HOST=host.docker.internal
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=ARQ0yNS7uT70WPZr8yXC
+      - REDIS_URL=redis://:ARQ0yNS7uT70WPZr8yXC@host.docker.internal:6379
+      - MONGO_URI=mongodb://admin:uCmG7ABHKIKPX6MVnlFC@host.docker.internal:27017/?authSource=admin
+      - MONGO_DB_NAME=es
+      - QDRANT_HOST=host.docker.internal
+      - QDRANT_API_KEY=UsoNzWEQHDrNOxDSp4z4zRyQ
+      - QDRANT_GRPC_PORT=6334
+      - QDRANT_PORT=6333
+      - OLLAMA_API_URL=http://host.docker.internal:11434
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+    command: python -m app.query_main
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
