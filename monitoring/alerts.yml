@@ -1,0 +1,294 @@
+# Alert Rules for Multi-Tenant System
+
+groups:
+  # ==================== INFRASTRUCTURE ALERTS ====================
+  - name: infrastructure
+    interval: 30s
+    rules:
+      - alert: HighMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) > 0.9
+        for: 5m
+        labels:
+          severity: warning
+          component: infrastructure
+        annotations:
+          summary: "High memory usage detected"
+          description: "Memory usage is above 90% (current value: {{ $value | humanizePercentage }})"
+
+      - alert: HighCPUUsage
+        expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+          component: infrastructure
+        annotations:
+          summary: "High CPU usage detected"
+          description: "CPU usage is above 80% (current value: {{ $value | humanize }}%)"
+
+      - alert: DiskSpaceLow
+        expr: (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) < 0.1
+        for: 5m
+        labels:
+          severity: critical
+          component: infrastructure
+        annotations:
+          summary: "Low disk space"
+          description: "Less than 10% disk space remaining ({{ $value | humanizePercentage }} available)"
+
+  # ==================== DATABASE ALERTS ====================
+  - name: database
+    interval: 30s
+    rules:
+      - alert: MongoDBDown
+        expr: up{job="mongodb"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: database
+        annotations:
+          summary: "MongoDB is down"
+          description: "MongoDB has been down for more than 1 minute"
+
+      - alert: MongoDBHighConnections
+        expr: mongodb_connections{state="current"} > 1000
+        for: 5m
+        labels:
+          severity: warning
+          component: database
+        annotations:
+          summary: "High number of MongoDB connections"
+          description: "MongoDB has {{ $value }} active connections"
+
+      - alert: MongoDBSlowQueries
+        expr: rate(mongodb_op_counters_total[5m]) > 1000
+        for: 5m
+        labels:
+          severity: warning
+          component: database
+        annotations:
+          summary: "High MongoDB query rate"
+          description: "MongoDB query rate is {{ $value | humanize }} ops/sec"
+
+  # ==================== REDIS CACHE ALERTS ====================
+  - name: cache
+    interval: 30s
+    rules:
+      - alert: RedisDown
+        expr: up{job="redis"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: cache
+        annotations:
+          summary: "Redis is down"
+          description: "Redis cache has been down for more than 1 minute"
+
+      - alert: RedisCacheHitRateLow
+        expr: redis_keyspace_hits_total / (redis_keyspace_hits_total + redis_keyspace_misses_total) < 0.7
+        for: 10m
+        labels:
+          severity: warning
+          component: cache
+        annotations:
+          summary: "Low Redis cache hit rate"
+          description: "Cache hit rate is {{ $value | humanizePercentage }} (below 70%)"
+
+      - alert: RedisMemoryHigh
+        expr: redis_memory_used_bytes / redis_memory_max_bytes > 0.9
+        for: 5m
+        labels:
+          severity: warning
+          component: cache
+        annotations:
+          summary: "High Redis memory usage"
+          description: "Redis memory usage is {{ $value | humanizePercentage }} of maximum"
+
+  # ==================== MULTI-TENANCY ALERTS ====================
+  - name: multi_tenancy
+    interval: 30s
+    rules:
+      - alert: OrganizationLimitExceeded
+        expr: organization_project_count / organization_max_projects > 0.9
+        for: 5m
+        labels:
+          severity: warning
+          component: multi_tenancy
+        annotations:
+          summary: "Organization approaching project limit"
+          description: "Organization {{ $labels.org_name }} is using {{ $value | humanizePercentage }} of project limit"
+
+      - alert: CrossOrganizationAccessAttempt
+        expr: rate(security_cross_org_access_attempts_total[5m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+          component: security
+        annotations:
+          summary: "Cross-organization access attempt detected"
+          description: "{{ $value | humanize }} cross-org access attempts per second"
+
+      - alert: ProjectMemberLimitExceeded
+        expr: project_member_count > 100
+        for: 5m
+        labels:
+          severity: info
+          component: multi_tenancy
+        annotations:
+          summary: "Project has many members"
+          description: "Project {{ $labels.project_name }} has {{ $value }} members"
+
+      - alert: OrganizationDataGrowthHigh
+        expr: rate(organization_data_size_bytes[1h]) > 1073741824  # 1GB/hour
+        for: 30m
+        labels:
+          severity: warning
+          component: multi_tenancy
+        annotations:
+          summary: "High data growth rate"
+          description: "Organization {{ $labels.org_name }} data growing at {{ $value | humanize1024 }}B/hour"
+
+  # ==================== API PERFORMANCE ALERTS ====================
+  - name: api_performance
+    interval: 30s
+    rules:
+      - alert: APIResponseTimeSlow
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 1
+        for: 5m
+        labels:
+          severity: warning
+          component: api
+        annotations:
+          summary: "Slow API response times"
+          description: "95th percentile response time is {{ $value | humanize }}s (above 1s threshold)"
+
+      - alert: APIErrorRateHigh
+        expr: rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          component: api
+        annotations:
+          summary: "High API error rate"
+          description: "API error rate is {{ $value | humanizePercentage }} (above 5% threshold)"
+
+      - alert: APITrafficSpike
+        expr: rate(http_requests_total[5m]) > 1000
+        for: 5m
+        labels:
+          severity: info
+          component: api
+        annotations:
+          summary: "High API traffic"
+          description: "API receiving {{ $value | humanize }} requests per second"
+
+  # ==================== APPLICATION ALERTS ====================
+  - name: application
+    interval: 30s
+    rules:
+      - alert: BackendDown
+        expr: up{job="backend"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: backend
+        annotations:
+          summary: "Backend service is down"
+          description: "Backend service has been down for more than 1 minute"
+
+      - alert: FrontendDown
+        expr: up{job="frontend"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: frontend
+        annotations:
+          summary: "Frontend service is down"
+          description: "Frontend service has been down for more than 1 minute"
+
+      - alert: HighErrorLogs
+        expr: rate(log_messages_total{level="error"}[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+          component: application
+        annotations:
+          summary: "High rate of error logs"
+          description: "{{ $value | humanize }} errors per second in logs"
+
+      - alert: MigrationFailed
+        expr: migration_status{status="failed"} == 1
+        for: 1m
+        labels:
+          severity: critical
+          component: migration
+        annotations:
+          summary: "Database migration failed"
+          description: "Migration {{ $labels.migration_name }} has failed"
+
+  # ==================== SECURITY ALERTS ====================
+  - name: security
+    interval: 30s
+    rules:
+      - alert: UnauthorizedAccessAttempts
+        expr: rate(auth_failed_attempts_total[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+          component: security
+        annotations:
+          summary: "High rate of failed authentication attempts"
+          description: "{{ $value | humanize }} failed auth attempts per second"
+
+      - alert: SuspiciousActivity
+        expr: rate(security_suspicious_activity_total[5m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+          component: security
+        annotations:
+          summary: "Suspicious activity detected"
+          description: "Suspicious activity type: {{ $labels.activity_type }}"
+
+      - alert: APIKeyCompromised
+        expr: api_key_usage_anomaly == 1
+        for: 1m
+        labels:
+          severity: critical
+          component: security
+        annotations:
+          summary: "Potential API key compromise"
+          description: "Unusual usage pattern detected for API key {{ $labels.key_id }}"
+
+  # ==================== BUSINESS METRICS ALERTS ====================
+  - name: business_metrics
+    interval: 60s
+    rules:
+      - alert: LowUserEngagement
+        expr: active_users_24h / total_users < 0.1
+        for: 1h
+        labels:
+          severity: info
+          component: business
+        annotations:
+          summary: "Low user engagement"
+          description: "Only {{ $value | humanizePercentage }} of users active in last 24 hours"
+
+      - alert: OrganizationChurn
+        expr: organizations_deleted_7d > 5
+        for: 1h
+        labels:
+          severity: warning
+          component: business
+        annotations:
+          summary: "High organization churn"
+          description: "{{ $value }} organizations deleted in last 7 days"
+
+      - alert: ProjectCreationAnomaly
+        expr: abs(rate(projects_created_total[1h]) - avg_over_time(rate(projects_created_total[1h])[7d:])) > 2 * stddev_over_time(rate(projects_created_total[1h])[7d:])
+        for: 30m
+        labels:
+          severity: info
+          component: business
+        annotations:
+          summary: "Unusual project creation rate"
+          description: "Project creation rate deviates significantly from 7-day average"

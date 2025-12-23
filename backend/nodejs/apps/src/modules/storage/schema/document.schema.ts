@@ -90,6 +90,18 @@ const DocumentSchema = new Schema(
     initiatorUserId: {
       type: mongoose.Types.ObjectId,
     },
+    orgId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'orgs',
+      required: true,
+      index: true,
+    },
+    projectId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'projects',
+      required: false, // Optional for backward compatibility
+      index: true,
+    },
     sizeInBytes: {
       type: Number,
     },
@@ -147,6 +159,12 @@ const DocumentSchema = new Schema(
     },
   },
 );
+
+// Add compound indexes for better query performance
+DocumentSchema.index({ orgId: 1, isDeleted: 1 });
+DocumentSchema.index({ orgId: 1, projectId: 1 });
+DocumentSchema.index({ orgId: 1, documentName: 1 });
+DocumentSchema.index({ orgId: 1, projectId: 1, isDeleted: 1 });
 
 // Create and export the model
 export const DocumentModel = mongoose.model<DocumentModel>('Document', DocumentSchema);

@@ -79,6 +79,7 @@ export interface IMessage {
 export interface IConversation {
   userId: Types.ObjectId;
   orgId: Types.ObjectId;
+  projectId?: Types.ObjectId;
   title?: string;
   initiator: Types.ObjectId;
   messages: IMessageDocument[];

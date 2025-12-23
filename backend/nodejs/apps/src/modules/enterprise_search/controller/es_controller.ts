@@ -194,9 +194,11 @@ export const streamChat =
 
       // Create initial conversation record
       const userQueryMessage = buildUserQueryMessage(req.body.query);
+      const projectId = (req as any).project?.projectId;
 
       const userConversationData: Partial<IConversation> = {
         orgId,
+        projectId: projectId || undefined, // Add projectId if available
         userId,
         initiator: userId,
         title: req.body.query.slice(0, 100),
@@ -566,9 +568,11 @@ export const createConversation =
       session?: ClientSession | null,
     ): Promise<any> {
       const userQueryMessage = buildUserQueryMessage(req.body.query);
+      const projectId = (req as any).project?.projectId;
 
       const userConversationData: Partial<IConversation> = {
         orgId,
+        projectId: projectId || undefined, // Add projectId if available
         userId,
         initiator: userId,
         title: req.body.query.slice(0, 100),
@@ -852,10 +856,12 @@ export const addMessage =
       // Extract common operations into a helper function.
       async function performAddMessage(session?: ClientSession | null) {
         // Get existing conversation
+        const projectId = (req as any).project?.projectId;
         const conversation = await Conversation.findOne({
           _id: req.params.conversationId,
           orgId,
           userId,
+          projectId: projectId || { $in: [null, undefined] }, // Backward compatibility
           isDeleted: false,
         });
 
@@ -1129,10 +1135,12 @@ export const addMessageStream =
       session?: ClientSession | null,
     ): Promise<void> {
       // Get existing conversation
+      const projectId = (req as any).project?.projectId;
       const conversation = await Conversation.findOne({
         _id: conversationId,
         orgId,
         userId,
+        projectId: projectId || { $in: [null, undefined] }, // Backward compatibility
         isDeleted: false,
       });
 
@@ -1888,10 +1896,12 @@ export const deleteConversationById = async (
     // Common helper that performs the delete operation.
     async function performDeleteConversation(session?: ClientSession | null) {
       // Get conversation with access control
+      const projectId = (req as any).project?.projectId;
       const conversation: IConversation | null = await Conversation.findOne({
         _id: conversationId,
         userId,
         orgId,
+        projectId: projectId || { $in: [null, undefined] }, // Backward compatibility
         isDeleted: false,
         $or: [
           { initiator: userId },
@@ -2041,10 +2051,12 @@ export const shareConversationById =
         }
 
         // Get conversation with access control
+        const projectId = (req as any).project?.projectId;
         const conversation: IConversation | null = await Conversation.findOne({
           _id: conversationId,
           orgId,
           userId,
+          projectId: projectId || { $in: [null, undefined] }, // Backward compatibility
           isDeleted: false,
           initiator: userId, // Only initiator can share
         });
@@ -2221,9 +2233,11 @@ export const unshareConversationById = async (
 
     async function performUnshareConversation(session?: ClientSession | null) {
       // Get conversation with access control
+      const projectId = (req as any).project?.projectId;
       const conversation = await Conversation.findOne({
         _id: conversationId,
         orgId,
+        projectId: projectId || { $in: [null, undefined] }, // Backward compatibility
         isDeleted: false,
         initiator: userId, // Only initiator can unshare
       });
@@ -2803,10 +2817,12 @@ export const updateTitle = async (
     session = await mongoose.startSession();
     session.startTransaction();
 
+    const projectId = (req as any).project?.projectId;
     const conversation = await Conversation.findOne({
       _id: conversationId,
       orgId,
       userId,
+      projectId: projectId || { $in: [null, undefined] }, // Backward compatibility
       isDeleted: false,
     });
 
@@ -2872,10 +2888,12 @@ export const updateFeedback = async (
     });
 
     async function performUpdateFeedback(session?: ClientSession | null) {
+      const projectId = (req as any).project?.projectId;
       const conversation = await Conversation.findOne({
         _id: conversationId,
         orgId,
         userId,
+        projectId: projectId || { $in: [null, undefined] }, // Backward compatibility
         isDeleted: false,
         $or: [
           { initiator: userId },
@@ -3004,10 +3022,12 @@ export const archiveConversation = async (
 
     async function performArchiveConversation(session?: ClientSession | null) {
       // Get conversation with access control
+      const projectId = (req as any).project?.projectId;
       const conversation = await Conversation.findOne({
         _id: conversationId,
         userId,
         orgId,
+        projectId: projectId || { $in: [null, undefined] }, // Backward compatibility
         isDeleted: false,
         $or: [
           { initiator: userId },
@@ -3115,10 +3135,12 @@ export const unarchiveConversation = async (
       session?: ClientSession | null,
     ) {
       // Get conversation with access control
+      const projectId = (req as any).project?.projectId;
       const conversation = await Conversation.findOne({
         _id: conversationId,
         userId,
         orgId,
+        projectId: projectId || { $in: [null, undefined] }, // Backward compatibility
         isDeleted: false,
         $or: [
           { initiator: userId },
@@ -4549,9 +4571,11 @@ export const unshareAgent =
 
       // Create initial conversation record
       const userQueryMessage = buildUserQueryMessage(req.body.query);
+      const projectId = (req as any).project?.projectId;
 
       const userConversationData: Partial<IAgentConversation> = {
         orgId,
+        projectId: projectId || undefined, // Add projectId if available
         userId,
         initiator: userId,
         title: req.body.query.slice(0, 100),
@@ -4845,9 +4869,11 @@ export const createAgentConversation =
       session?: ClientSession | null,
     ): Promise<any> {
       const userQueryMessage = buildUserQueryMessage(req.body.query);
+      const projectId = (req as any).project?.projectId;
 
       const userConversationData: Partial<IAgentConversation> = {
         orgId,
+        projectId: projectId || undefined, // Add projectId if available
         userId,
         initiator: userId,
         title: req.body.query.slice(0, 100),
@@ -5081,11 +5107,13 @@ export const createAgentConversation =
       // Extract common operations into a helper function.
       async function performAddMessage(session?: ClientSession | null) {
         // Get existing conversation
+        const projectId = (req as any).project?.projectId;
         const conversation = await AgentConversation.findOne({
           _id: req.params.conversationId,
           agentKey,
           orgId,
           userId,
+          projectId: projectId || { $in: [null, undefined] }, // Backward compatibility
           isDeleted: false,
         });
 
@@ -5372,10 +5400,12 @@ export const addMessageStreamToAgentConversation =
       session?: ClientSession | null,
     ): Promise<void> {
       // Get existing conversation
+      const projectId = (req as any).project?.projectId;
       const conversation = await AgentConversation.findOne({
         _id: conversationId,
         agentKey,
         orgId,
+        projectId: projectId || { $in: [null, undefined] }, // Backward compatibility
         userId,
         isDeleted: false,
       });

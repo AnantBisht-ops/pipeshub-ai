@@ -130,6 +130,12 @@ const conversationSchema = new Schema<IConversation>(
   {
     userId: { type: Schema.Types.ObjectId, required: true, index: true },
     orgId: { type: Schema.Types.ObjectId, required: true, index: true },
+    projectId: {
+      type: Schema.Types.ObjectId,
+      ref: 'projects',
+      index: true,
+      required: false, // Optional for backward compatibility
+    },
     title: { type: String },
     initiator: { type: Schema.Types.ObjectId, required: true, index: true },
     messages: [messageSchema],
@@ -181,6 +187,8 @@ const conversationSchema = new Schema<IConversation>(
 
 // Create additional indexes as needed
 conversationSchema.index({ orgId: 1, initiator: 1 });
+conversationSchema.index({ orgId: 1, projectId: 1 });
+conversationSchema.index({ orgId: 1, projectId: 1, isDeleted: 1 });
 conversationSchema.index({ isShared: 1 });
 conversationSchema.index({ 'messages.content': 'text' });
 

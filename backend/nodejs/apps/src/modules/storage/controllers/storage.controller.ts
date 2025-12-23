@@ -24,7 +24,6 @@ import {
   NotFoundError,
 } from '../../../libs/errors/http.errors';
 import {
-  Document,
   FilePayload,
   StorageServiceResponse,
   StorageVendor,
@@ -223,10 +222,12 @@ export class StorageController {
         customMetadata,
         isVersionedFile,
         extension,
-      } = req.body as Partial<Document>;
+      } = req.body as any;
 
       const orgId = extractOrgId(req);
       const userId = extractUserId(req);
+      const projectId = (req as any).project?.projectId;
+
       if (!orgId) {
         throw new BadRequestError('OrgId not found in AuthToken');
       }
@@ -246,11 +247,12 @@ export class StorageController {
         (await this.keyValueStoreService.get<string>(storageEtcdPaths)) || '{}';
       const { storageType } = JSON.parse(storageConfig);
       const storageVendor = getStorageVendor(storageType ?? '');
-      const documentInfo: Partial<Document> = {
+      const documentInfo: any = {
         documentName,
         documentPath,
         alternateDocumentName,
         orgId: new mongoose.Types.ObjectId(orgId),
+        projectId: projectId ? new mongoose.Types.ObjectId(projectId) : undefined,
         isVersionedFile: isVersionedFile,
         initiatorUserId: userId ? new mongoose.Types.ObjectId(userId) : null,
         permissions: permissions,
@@ -278,9 +280,12 @@ export class StorageController {
         throw new BadRequestError(' document id is not passed ');
       }
       const orgId = extractOrgId(req);
+      const projectId = (req as any).project?.projectId;
+
       const doc = await DocumentModel.findOne({
         _id: documentId,
         orgId: orgId,
+        projectId: projectId || { $in: [null, undefined] }, // Backward compatibility
       });
 
       if (!doc) {
@@ -301,10 +306,12 @@ export class StorageController {
     try {
       const orgId = extractOrgId(req);
       const userId = extractUserId(req);
+      const projectId = (req as any).project?.projectId;
       const { documentId } = req.params;
       const document = await DocumentModel.findOne({
         _id: documentId,
         orgId,
+        projectId: projectId || { $in: [null, undefined] }, // Backward compatibility
       });
 
       if (!document) {
@@ -754,10 +761,12 @@ export class StorageController {
   ): Promise<void> {
     try {
       const { documentId } = req.params;
+      const projectId = (req as any).project?.projectId;
 
       const document = await DocumentModel.findOne({
         _id: documentId,
         orgId: req.user?.orgId,
+        projectId: projectId || { $in: [null, undefined] }, // Backward compatibility
       });
 
       if (!document || !document.documentPath) {

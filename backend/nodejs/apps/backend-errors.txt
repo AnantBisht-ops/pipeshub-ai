@@ -1,0 +1,1 @@
+src/modules/crawling_manager/services/crawling_worker.ts(6,1): error TS6133: 'ConnectorsCrawlingService' is declared but its value is never read.

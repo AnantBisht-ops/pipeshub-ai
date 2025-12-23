@@ -52,6 +52,8 @@ const McpOAuthCallback = lazy(
 );
 
 const SamlSsoConfigPage = lazy(() => import('src/pages/dashboard/account/saml-sso-config'));
+const ProjectsPage = lazy(() => import('src/pages/dashboard/account/projects'));
+const ProjectSettingsPage = lazy(() => import('src/pages/dashboard/account/project-settings'));
 
 // knowledge-base
 const KnowledgeBaseList = lazy(() => import('src/pages/dashboard/knowledgebase/knowledgebase'));
@@ -542,6 +544,15 @@ export const dashboardRoutes = [
             ],
           },
         ],
+      },
+      // Project management routes
+      {
+        path: 'projects',
+        element: CONFIG.auth.skip ? <ProjectsPage /> : <ProtectedRoute component={ProjectsPage} />,
+      },
+      {
+        path: 'projects/:projectId/settings',
+        element: CONFIG.auth.skip ? <ProjectSettingsPage /> : <ProtectedRoute component={ProjectSettingsPage} />,
       },
       {
         path: 'knowledge-base',

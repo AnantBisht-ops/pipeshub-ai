@@ -21,6 +21,8 @@ import { SettingsDrawer, defaultSettings, SettingsProvider } from 'src/component
 import { AuthProvider as JwtAuthProvider } from 'src/auth/context/jwt';
 import { ServicesHealthProvider } from 'src/context/ServicesHealthContext';
 import { HealthGate } from 'src/components/guard/HealthGate';
+import { OrganizationProvider } from 'src/context/OrganizationContext';
+import { ProjectProvider } from 'src/contexts/ProjectContext';
 
 import store from './store/store';
 import { ErrorProvider } from './utils/axios';
@@ -36,26 +38,30 @@ export default function App() {
     <I18nProvider>
       <LocalizationProvider>
         <AuthProvider>
-          <Provider store={store}>
-            <SettingsProvider settings={defaultSettings}>
-              <ThemeProvider>
-                <AdminProvider>
-                  <MotionLazy>
-                    <Snackbar />
-                    <ProgressBar />
-                    <SettingsDrawer />
-                    <ErrorProvider>
-                      <ServicesHealthProvider>
-                        <HealthGate>
-                          <Router />
-                        </HealthGate>
-                      </ServicesHealthProvider>
-                    </ErrorProvider>
-                  </MotionLazy>
-                </AdminProvider>
-              </ThemeProvider>
-            </SettingsProvider>
-          </Provider>
+          <OrganizationProvider>
+            <ProjectProvider>
+              <Provider store={store}>
+                <SettingsProvider settings={defaultSettings}>
+                <ThemeProvider>
+                  <AdminProvider>
+                    <MotionLazy>
+                      <Snackbar />
+                      <ProgressBar />
+                      <SettingsDrawer />
+                      <ErrorProvider>
+                        <ServicesHealthProvider>
+                          <HealthGate>
+                            <Router />
+                          </HealthGate>
+                        </ServicesHealthProvider>
+                      </ErrorProvider>
+                    </MotionLazy>
+                  </AdminProvider>
+                </ThemeProvider>
+              </SettingsProvider>
+            </Provider>
+          </ProjectProvider>
+          </OrganizationProvider>
         </AuthProvider>
       </LocalizationProvider>
     </I18nProvider>

@@ -4,6 +4,8 @@ import { MailController } from '../controller/mail.controller';
 import { AuthTokenService } from '../../../libs/services/authtoken.service';
 import { AuthMiddleware } from '../../../libs/middlewares/auth.middleware';
 import { AppConfig } from '../../tokens_manager/config/config';
+import { KeyValueStoreService } from '../../../libs/services/keyValueStore.service';
+import { ConfigurationManagerConfig } from '../../configuration_manager/config/config';
 
 const loggerConfig = {
   service: 'Mail Service',
@@ -11,9 +13,15 @@ const loggerConfig = {
 export class MailServiceContainer {
   private static instance: Container;
   private static logger: Logger = Logger.getInstance(loggerConfig);
-  static async initialize(appConfig: AppConfig): Promise<Container> {
+  static async initialize(
+    configurationManagerConfig: ConfigurationManagerConfig,
+    appConfig: AppConfig,
+  ): Promise<Container> {
     const container = new Container();
     container.bind<Logger>('Logger').toConstantValue(this.logger);
+    container
+      .bind<ConfigurationManagerConfig>('ConfigurationManagerConfig')
+      .toConstantValue(configurationManagerConfig);
     container
       .bind<AppConfig>('AppConfig')
       .toDynamicValue(() => appConfig) // Always fetch latest reference
@@ -33,6 +41,14 @@ export class MailServiceContainer {
       container.bind<MailController>('MailController').toDynamicValue(() => {
         return new MailController(appConfig, container.get('Logger'));
       });
+      const keyValueStoreService = KeyValueStoreService.getInstance(
+        container.get<ConfigurationManagerConfig>('ConfigurationManagerConfig'),
+      );
+      await keyValueStoreService.connect();
+      container
+        .bind<KeyValueStoreService>('KeyValueStoreService')
+        .toConstantValue(keyValueStoreService);
+
       const jwtSecret = appConfig.jwtSecret;
       const scopedJwtSecret = appConfig.scopedJwtSecret;
       const authTokenService = new AuthTokenService(jwtSecret, scopedJwtSecret);

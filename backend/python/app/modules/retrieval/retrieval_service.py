@@ -266,13 +266,15 @@ class RetrievalService:
                     )  # e.g., 'departments', 'categories', etc.
                     arango_filters[metadata_key] = values
 
+            # Debug logging for user_id
+            self.logger.info(f"[DEBUG] Received user_id from request: {user_id}, org_id: {org_id}")
+
             init_tasks = [
                 self._get_accessible_records_task(user_id, org_id, filter_groups, self.arango_service),
-                self._get_vector_store_task(),
-                self._get_user_cached(user_id)  # Get user info in parallel with caching
+                self._get_vector_store_task()
             ]
 
-            accessible_records, vector_store, user = await asyncio.gather(*init_tasks)
+            accessible_records, vector_store = await asyncio.gather(*init_tasks)
 
             if not accessible_records:
                 self.logger.error(f"No accessible documents found for user {user_id} and org {org_id}")
