@@ -326,7 +326,18 @@ export const AuthenticationView = () => {
 
       // Check if this is the final step
       if (authResponse.accessToken && authResponse.refreshToken) {
-        handleAuthComplete();
+        // DESKTOP INTEGRATION: Check if desktop auth
+        if (authResponse.isDesktopAuth && authResponse.desktopCallbackToken) {
+          navigate('/auth/desktop/callback', {
+            state: {
+              token: authResponse.desktopCallbackToken,
+              userId: authResponse.user?.id,
+              isNewUser: false,
+            },
+          });
+        } else {
+          handleAuthComplete();
+        }
       } else if (authResponse.nextStep !== undefined) {
         handleNextAuthStep(authResponse);
       }
@@ -358,7 +369,18 @@ export const AuthenticationView = () => {
 
       // Check if this is the final step
       if (authResponse.accessToken && authResponse.refreshToken) {
-        handleAuthComplete();
+        // DESKTOP INTEGRATION: Check if desktop auth
+        if (authResponse.isDesktopAuth && authResponse.desktopCallbackToken) {
+          navigate('/auth/desktop/callback', {
+            state: {
+              token: authResponse.desktopCallbackToken,
+              userId: authResponse.user?.id,
+              isNewUser: false,
+            },
+          });
+        } else {
+          handleAuthComplete();
+        }
       } else if (authResponse.nextStep !== undefined) {
         handleNextAuthStep(authResponse);
       }
@@ -382,7 +404,18 @@ export const AuthenticationView = () => {
 
       // Check if this is the final step
       if (authResponse.accessToken && authResponse.refreshToken) {
-        handleAuthComplete();
+        // DESKTOP INTEGRATION: Check if desktop auth
+        if (authResponse.isDesktopAuth && authResponse.desktopCallbackToken) {
+          navigate('/auth/desktop/callback', {
+            state: {
+              token: authResponse.desktopCallbackToken,
+              userId: authResponse.user?.id,
+              isNewUser: false,
+            },
+          });
+        } else {
+          handleAuthComplete();
+        }
       } else if (authResponse.nextStep !== undefined) {
         handleNextAuthStep(authResponse);
       }

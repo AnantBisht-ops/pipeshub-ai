@@ -17,6 +17,7 @@ import InputAdornment from '@mui/material/InputAdornment';
 
 import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
+import { useNavigate } from 'react-router-dom';
 
 import { Iconify } from 'src/components/iconify';
 import { Form, Field } from 'src/components/hook-form';
@@ -63,6 +64,7 @@ export default function OtpSignIn({
   sx,
 }: OtpSignInProps) {
   const router = useRouter();
+  const navigate = useNavigate(); // DESKTOP INTEGRATION: For callback navigation
   const { checkUserSession } = useAuthContext();
 
   const [countdown, setCountdown] = useState(60);
@@ -153,14 +155,34 @@ export default function OtpSignIn({
       if (response && response.nextStep !== undefined && onNextStep) {
         // We need to move to the next authentication step
         onNextStep(response);
+      } else if (response.accessToken && response.refreshToken) {
+        // DESKTOP INTEGRATION: Check if desktop auth
+        if (response.isDesktopAuth && response.desktopCallbackToken) {
+          // Desktop authentication complete - navigate to callback page
+          navigate('/auth/desktop/callback', {
+            state: {
+              token: response.desktopCallbackToken,
+              userId: response.user?.id,
+              isNewUser: false,
+            },
+          });
+        } else {
+          // Web authentication complete
+          await checkUserSession?.();
+          // router.refresh();
+          if (onAuthComplete) {
+            onAuthComplete();
+          } else {
+            // Navigate to specified redirect path after successful login
+            router.push('/');
+          }
+        }
       } else {
-        // Authentication is complete
+        // Fallback: call onAuthComplete if available
         await checkUserSession?.();
-        // router.refresh();
         if (onAuthComplete) {
           onAuthComplete();
         } else {
-          // Navigate to specified redirect path after successful login
           router.push('/');
         }
       }
