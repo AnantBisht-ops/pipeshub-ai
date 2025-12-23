@@ -22,6 +22,7 @@ import InputAdornment from '@mui/material/InputAdornment';
 
 import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
+import { useNavigate } from 'react-router-dom';
 
 import { useBoolean } from 'src/hooks/use-boolean';
 
@@ -55,6 +56,15 @@ interface AuthResponse {
   accessToken?: string;
   refreshToken?: string;
   message?: string;
+  // DESKTOP INTEGRATION: Desktop auth fields
+  isDesktopAuth?: boolean;
+  desktopCallbackToken?: string;
+  user?: {
+    id: string;
+    email: string;
+    fullName: string;
+  };
+  organizations?: any[];
 }
 
 interface PasswordSignInProps {
@@ -81,6 +91,7 @@ export default function PasswordSignIn({
   sx,
 }: PasswordSignInProps) {
   const router = useRouter();
+  const navigate = useNavigate(); // DESKTOP INTEGRATION: For callback navigation
   const { checkUserSession } = useAuthContext();
   const showPassword = useBoolean();
   const [isProcessing, setIsProcessing] = useState(false);
@@ -116,14 +127,26 @@ export default function PasswordSignIn({
             onNextStep(response);
           }
         } else if (response.accessToken && response.refreshToken) {
-          // Authentication is complete, proceed with login
-          await checkUserSession?.();
-          // router.refresh();
-          if (onAuthComplete) {
-            onAuthComplete();
+          // DESKTOP INTEGRATION: Check if desktop auth
+          if (response.isDesktopAuth && response.desktopCallbackToken) {
+            // Desktop authentication complete - navigate to callback page
+            navigate('/auth/desktop/callback', {
+              state: {
+                token: response.desktopCallbackToken,
+                userId: response.user?.id,
+                isNewUser: false,
+              },
+            });
           } else {
-            // Navigate to specified redirect path after successful login
-            router.push('/');
+            // Web authentication complete
+            await checkUserSession?.();
+            // router.refresh();
+            if (onAuthComplete) {
+              onAuthComplete();
+            } else {
+              // Navigate to specified redirect path after successful login
+              router.push('/');
+            }
           }
         } else {
           // Unexpected response format

@@ -71,6 +71,15 @@ export interface AuthResponse {
   accessToken?: string;
   refreshToken?: string;
   message?: string;
+  // DESKTOP INTEGRATION: Desktop auth fields
+  isDesktopAuth?: boolean;
+  desktopCallbackToken?: string;
+  user?: {
+    id: string;
+    email: string;
+    fullName: string;
+  };
+  organizations?: any[];
 }
 
 interface orgExistsReponse {
@@ -161,12 +170,17 @@ export const VerifyOtp = async ({ email, otp }: SignInOtpParams): Promise<AuthRe
  * Auth initialization
  *************************************** */
 
-export const authInitConfig = async (email: string): Promise<AuthInitResponse> => {
+export const authInitConfig = async (
+  email: string,
+  source?: string // DESKTOP INTEGRATION: Accept source parameter
+): Promise<AuthInitResponse> => {
   try {
-    const response = await axios.post<AuthInitResponse>(
-      `${CONFIG.authUrl}/api/v1/userAccount/initAuth`,
-      { email }
-    );
+    // Build URL with source parameter if provided
+    const url = source
+      ? `${CONFIG.authUrl}/api/v1/userAccount/initAuth?source=${source}`
+      : `${CONFIG.authUrl}/api/v1/userAccount/initAuth`;
+
+    const response = await axios.post<AuthInitResponse>(url, { email });
     const sessionToken = response.headers['x-session-token'];
 
     // Store the session token if it exists

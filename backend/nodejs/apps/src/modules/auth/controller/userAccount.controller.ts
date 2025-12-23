@@ -1360,127 +1360,21 @@ export class UserAccountController {
             this.config.jwtSecret,
           );
 
-          // Build desktop callback URL
-          const callbackUrl = `openanalyst://auth/callback?token=${callbackToken}`;
-
-          // Return HTML page with "Click to Open OpenAnalyst"
-          const html = `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Authentication Successful - OpenAnalyst</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
-      padding: 20px;
-    }
-    .container {
-      background: white;
-      border-radius: 16px;
-      padding: 48px 32px;
-      text-align: center;
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-      max-width: 450px;
-      width: 100%;
-    }
-    .logo {
-      width: 80px;
-      height: 80px;
-      margin: 0 auto 24px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      border-radius: 20px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 36px;
-      font-weight: bold;
-      color: white;
-    }
-    .success-icon {
-      width: 64px;
-      height: 64px;
-      margin: 0 auto 24px;
-      background: #10b981;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 32px;
-      color: white;
-    }
-    h1 { font-size: 28px; color: #1a202c; margin-bottom: 12px; font-weight: 600; }
-    p { color: #718096; font-size: 16px; margin-bottom: 32px; line-height: 1.6; }
-    .open-button {
-      display: inline-block;
-      padding: 16px 48px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      text-decoration: none;
-      border-radius: 12px;
-      font-weight: 600;
-      font-size: 18px;
-      cursor: pointer;
-      border: none;
-      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-      transition: all 0.2s;
-    }
-    .open-button:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
-    }
-    .info-box {
-      margin-top: 32px;
-      padding: 20px;
-      background: #f7fafc;
-      border-radius: 12px;
-      border-left: 4px solid #667eea;
-    }
-    .info-title {
-      font-weight: 600;
-      color: #2d3748;
-      margin-bottom: 8px;
-      font-size: 14px;
-    }
-    .info-text {
-      color: #4a5568;
-      font-size: 14px;
-      line-height: 1.5;
-    }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="logo">OA</div>
-    <div class="success-icon">✓</div>
-    <h1>Authentication Successful!</h1>
-    <p>You have successfully signed in to OpenAnalyst.<br>Click the button below to open the desktop application.</p>
-    <a href="${callbackUrl}" class="open-button" onclick="window.open(this.href); return false;">Open OpenAnalyst</a>
-    <div class="info-box">
-      <div class="info-title">📱 Desktop App Required</div>
-      <div class="info-text">
-        Make sure you have the OpenAnalyst desktop application installed on your computer.
-      </div>
-    </div>
-  </div>
-  <script>
-    // Auto-trigger the protocol after 1.5 seconds
-    setTimeout(function() {
-      window.location.href = '${callbackUrl}';
-    }, 1500);
-  </script>
-</body>
-</html>`;
-
-          res.setHeader('Content-Type', 'text/html');
-          res.status(200).send(html);
+          // Return JSON for frontend to handle
+          // Frontend will show the desktop callback page
+          res.status(200).json({
+            message: 'Fully authenticated',
+            accessToken,
+            refreshToken,
+            isDesktopAuth: true, // Frontend uses this to navigate to callback page
+            desktopCallbackToken: callbackToken, // Token for desktop app
+            user: {
+              id: user._id,
+              email: user.email,
+              fullName: user.fullName,
+            },
+            organizations,
+          });
         } else {
           // Web flow: Return normal JSON response
           res.status(200).json({

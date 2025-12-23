@@ -21,6 +21,14 @@ const Jwt = {
   OAuthCallback: lazy(() => import('src/auth/view/auth/oauth-callback')),
 };
 
+/** **************************************
+ * Desktop Integration (Phase 3)
+ *************************************** */
+const Desktop = {
+  CallbackPage: lazy(() => import('src/auth/view/desktop/desktop-callback')),
+  ErrorPage: lazy(() => import('src/auth/view/desktop/desktop-error')),
+};
+
 
 const authJwt = {
   children: [
@@ -71,6 +79,15 @@ const authJwt = {
           </AuthSplitLayout>
         </GuestGuard>
       ),
+    },
+    // DESKTOP INTEGRATION: Desktop callback routes
+    {
+      path: 'desktop/callback',
+      element: <Desktop.CallbackPage />,
+    },
+    {
+      path: 'desktop/error',
+      element: <Desktop.ErrorPage />,
     },
   ],
 };

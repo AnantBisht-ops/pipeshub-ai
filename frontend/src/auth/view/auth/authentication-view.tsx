@@ -4,7 +4,8 @@ import type { AuthResponse } from 'src/auth/context/jwt';
 import { z as zod } from 'zod';
 import PropTypes from 'prop-types';
 import { useForm } from 'react-hook-form';
-import { useNavigate } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { DesktopIntegration } from 'src/utils/desktop-integration';
 // Import specific icons
 import emailIcon from '@iconify-icons/mdi/email';
 import googleIcon from '@iconify-icons/mdi/google';
@@ -218,8 +219,28 @@ export const AuthenticationView = () => {
     severity: 'success' as 'success' | 'error',
   });
 
+  // DESKTOP INTEGRATION: Source detection
+  const [searchParams] = useSearchParams();
+  const [isDesktopAuth, setIsDesktopAuth] = useState(false);
+  const [authSource, setAuthSource] = useState<string>('web');
+
   // Prevent components from auto-initializing when steps change
   const componentMountRef = useRef(false);
+
+  // DESKTOP INTEGRATION: Detect source from URL on mount
+  useEffect(() => {
+    const detectedState = DesktopIntegration.DesktopDetector.detectDesktopAuth(
+      searchParams,
+      navigator.userAgent
+    );
+
+    setIsDesktopAuth(detectedState.isExtension);
+    setAuthSource(detectedState.source);
+
+    if (detectedState.isExtension) {
+      console.log('🖥️ Desktop authentication detected:', detectedState);
+    }
+  }, [searchParams]);
 
   const methods = useForm<InitialSchemaType>({
     resolver: zodResolver(InitialSchema),
@@ -245,7 +266,8 @@ export const AuthenticationView = () => {
     setLoading(true);
     setError('');
     try {
-      const response = await authInitConfig(data.email);
+      // DESKTOP INTEGRATION: Pass source parameter to backend
+      const response = await authInitConfig(data.email, authSource);
       if (response) {
         // Initialize first auth step
         const newStep: AuthStep = {
@@ -627,6 +649,24 @@ export const AuthenticationView = () => {
               </Typography>
             </Box>
           </Box>
+
+          {/* DESKTOP INTEGRATION: Desktop authentication indicator */}
+          {isDesktopAuth && (
+            <Alert
+              severity="info"
+              sx={{
+                mb: 3,
+                bgcolor: (theme1) => alpha(theme1.palette.info.main, 0.08),
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Iconify icon="mdi:desktop-mac" width={20} />
+                <Typography variant="body2">
+                  Authenticating for Desktop Application
+                </Typography>
+              </Box>
+            </Alert>
+          )}
 
           {/* Error message */}
           {error && (
