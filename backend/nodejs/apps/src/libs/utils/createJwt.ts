@@ -154,3 +154,32 @@ export const scopedStorageServiceJwtGenerator = (
     },
   );
 };
+
+/**
+ * Generates a JWT token for desktop callback containing the full auth response
+ * This token is used in the OAuth-style flow: openanalyst://auth/callback?token=JWT
+ * Desktop app will decode this token to extract accessToken, refreshToken, user data, etc.
+ */
+export const desktopCallbackJwtGenerator = (
+  payload: {
+    accessToken: string;
+    refreshToken: string;
+    expiresIn: number;
+    user: any;
+    organizations: any[];
+    currentOrgId: string;
+    isNewUser: boolean;
+  },
+  jwtSecret: string,
+) => {
+  return jwt.sign(
+    {
+      ...payload,
+      scopes: [TokenScopes.USER_LOOKUP], // Reusing existing scope for simplicity
+    },
+    jwtSecret,
+    {
+      expiresIn: '5m', // Short-lived since it's meant for immediate desktop app consumption
+    },
+  );
+};
