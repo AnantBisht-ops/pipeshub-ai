@@ -76,6 +76,35 @@ export interface IMessage {
   modelInfo?: IAIModel;
 }
 
+// Claude Code specific interfaces
+export interface IClaudeCodeMessageContent {
+  type: 'text' | 'tool_use' | 'tool_result';
+  text?: string;
+  toolUse?: {
+    name?: string;
+    input?: Map<string, any>;
+  };
+  toolResult?: {
+    content?: string;
+  };
+}
+
+export interface IClaudeCodeMessage {
+  uuid: string;
+  parentUuid?: string;
+  timestamp?: string;
+  content?: IClaudeCodeMessageContent[];
+  tokenUsage?: {
+    input_tokens?: number;
+    output_tokens?: number;
+    total_cost?: number;
+  };
+}
+
+export interface IClaudeCodeSession {
+  sessionId?: string;
+}
+
 export interface IConversation {
   userId: Types.ObjectId;
   orgId: Types.ObjectId;
@@ -120,6 +149,12 @@ export interface IConversation {
     stack?: string;
     metadata?: Map<string, any>;
   }>;
+
+  // ===== CLAUDE CODE INTEGRATION FIELDS =====
+  conversationType?: 'pipeshub' | 'claude_code';  // Defaults to 'pipeshub'
+  claudeCodeSession?: IClaudeCodeSession;          // Claude session tracking
+  claudeCodeMessages?: IClaudeCodeMessage[];       // Claude specific messages
+
   // Additional metadata for useful information
   metadata?: Map<string, any>;
 }

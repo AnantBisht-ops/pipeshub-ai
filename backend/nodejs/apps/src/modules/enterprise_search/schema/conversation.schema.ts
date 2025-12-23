@@ -176,6 +176,61 @@ const conversationSchema = new Schema<IConversation>(
         metadata: { type: Map, of: Schema.Types.Mixed },
       },
     ],
+
+    // ===== CLAUDE CODE INTEGRATION FIELDS (ALL NULLABLE FOR BACKWARD COMPATIBILITY) =====
+
+    // 1. Conversation type identifier - defaults to 'pipeshub' for backward compatibility
+    conversationType: {
+      type: String,
+      enum: ['pipeshub', 'claude_code'],
+      default: 'pipeshub', // IMPORTANT: Default ensures existing conversations work
+    },
+
+    // 2. Claude Code session tracking (nullable - only present for Claude conversations)
+    // Note: This entire object is optional by default in Mongoose
+    claudeCodeSession: {
+      sessionId: { type: String }, // Unique Claude session identifier
+    },
+
+    // 3. Claude Code enhanced messages (separate from regular messages)
+    claudeCodeMessages: [{
+      uuid: { type: String },      // Unique message ID
+      parentUuid: { type: String },              // For threading messages
+      timestamp: { type: String },               // ISO timestamp
+
+      // Message content with multiple types
+      content: [{
+        type: {
+          type: String,
+          enum: ['text', 'tool_use', 'tool_result']
+        },
+        text: { type: String },                  // Actual message text
+
+        // Tool use tracking (when type is 'tool_use')
+        toolUse: {
+          name: { type: String },                // Tool name (Read, Write, etc.)
+          input: {
+            type: Map,
+            of: Schema.Types.Mixed
+          },                                      // Tool parameters
+        },
+
+        // Tool result tracking (when type is 'tool_result')
+        toolResult: {
+          content: { type: String },             // Result from tool execution
+        },
+        _id: false,
+      }],
+
+      // Token usage tracking for cost monitoring
+      tokenUsage: {
+        input_tokens: { type: Number },
+        output_tokens: { type: Number },
+        total_cost: { type: Number },            // Cost in USD
+      },
+      _id: false,
+    }],
+
     // Additional metadata for useful information
     metadata: {
       type: Map,
@@ -191,6 +246,11 @@ conversationSchema.index({ orgId: 1, projectId: 1 });
 conversationSchema.index({ orgId: 1, projectId: 1, isDeleted: 1 });
 conversationSchema.index({ isShared: 1 });
 conversationSchema.index({ 'messages.content': 'text' });
+
+// Claude Code specific indexes
+conversationSchema.index({ conversationType: 1 }); // Fast filtering by conversation type
+conversationSchema.index({ 'claudeCodeSession.sessionId': 1 }); // Find conversations by Claude session
+conversationSchema.index({ 'claudeCodeMessages.uuid': 1 }); // Find specific Claude messages
 
 // Export the model
 export const Conversation: Model<IConversation> = mongoose.model<IConversation>(

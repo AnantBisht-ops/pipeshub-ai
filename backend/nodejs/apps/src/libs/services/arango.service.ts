@@ -39,7 +39,7 @@ export class ArangoService {
       // First connect to _system database to be able to create our target database
       this.db = new Database({
         url,
-        timeout: 2000,
+        timeout: 30000, // Increased to 30s for better reliability
       });
 
       if (username && password) {
@@ -62,7 +62,7 @@ export class ArangoService {
       this.db = new Database({
         url,
         databaseName,
-        timeout: 2000,
+        timeout: 30000, // Increased to 30s for better reliability
       });
 
       if (username && password) {
