@@ -197,18 +197,20 @@ export class Application {
       this.configureMiddleware(appConfig);
       this.configureRoutes();
       this.setupSwagger();
+
+      // Serve static frontend files BEFORE error handling
+      this.app.use(express.static(path.join(__dirname, 'public')));
+      // SPA fallback route - must be after API routes but before error handling
+      this.app.get('*', (_req, res) => {
+        res.sendFile(path.join(__dirname, 'public', 'index.html'));
+      });
+
+      // Error handling must be LAST
       this.configureErrorHandling();
 
       this.notificationContainer
         .get<NotificationService>(NotificationService)
         .initialize(this.server);
-
-      // Serve static frontend files\
-      this.app.use(express.static(path.join(__dirname, 'public')));
-      // SPA fallback route\
-      this.app.get('*', (_req, res) => {
-        res.sendFile(path.join(__dirname, 'public', 'index.html'));
-      });
 
       this.logger.info('Application initialized successfully');
     } catch (error: any) {
