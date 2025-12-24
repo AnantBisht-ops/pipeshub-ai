@@ -19,6 +19,7 @@ const Jwt = {
   ResetPasswordPage: lazy(() => import('src/pages/auth/jwt/reset-password')),
   SamlSsoSuccess: lazy(() => import('src/auth/view/auth/saml-sso-success')),
   OAuthCallback: lazy(() => import('src/auth/view/auth/oauth-callback')),
+  DesktopAuthSuccess: lazy(() => import('src/auth/view/auth/desktop-auth-success')),
 };
 
 
@@ -49,6 +50,16 @@ const authJwt = {
       element: (
         <GuestGuard>
           <Jwt.OAuthCallback />
+        </GuestGuard>
+      ),
+    },
+    {
+      path: 'desktop-success',
+      element: (
+        <GuestGuard>
+          <AuthSplitLayout section={{ title: 'Authentication Complete' }}>
+            <Jwt.DesktopAuthSuccess />
+          </AuthSplitLayout>
         </GuestGuard>
       ),
     },

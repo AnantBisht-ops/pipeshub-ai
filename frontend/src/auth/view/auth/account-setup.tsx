@@ -288,7 +288,9 @@ export const AccountSetupForm: React.FC<AccountSetupFormProps> = ({ accountType 
         severity: 'success',
       });
       reset(initialFormData);
-      navigate('/auth/sign-in');
+      // Preserve query parameters (like ?source=desktop) when redirecting to sign-in
+      const currentSearch = window.location.search;
+      navigate(`/auth/sign-in${currentSearch}`);
     } catch (error) {
       // setSnackbar({
       //   open: true,

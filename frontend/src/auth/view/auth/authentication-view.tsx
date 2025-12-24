@@ -1,5 +1,5 @@
 import type { AuthState } from 'src/store/auth-slice';
-import type { AuthResponse } from 'src/auth/context/jwt';
+import type { AuthResponse, DesktopAuthResponse } from 'src/auth/context/jwt';
 
 import { z as zod } from 'zod';
 import PropTypes from 'prop-types';
@@ -53,6 +53,7 @@ import {
   SignInWithGoogle,
   SignInWithAzureAd,
   SignInWithMicrosoft,
+  isDesktopAuthResponse,
 } from 'src/auth/context/jwt';
 
 import OtpSignIn from './otp-sign-in';
@@ -217,6 +218,8 @@ export const AuthenticationView = () => {
     message: '',
     severity: 'success' as 'success' | 'error',
   });
+  // Desktop authentication state
+  const [isDesktopAuth, setIsDesktopAuth] = useState<boolean>(false);
 
   // Prevent components from auto-initializing when steps change
   const componentMountRef = useRef(false);
@@ -266,7 +269,17 @@ export const AuthenticationView = () => {
     }
   };
   // Handle the next step in MFA
-  const handleNextAuthStep = (response: AuthResponse) => {
+  const handleNextAuthStep = (response: AuthResponse | DesktopAuthResponse) => {
+    // Check if this is a desktop auth response - redirect to success page
+    if (isDesktopAuthResponse(response)) {
+      console.log('[Auth] Desktop auth success, redirecting to success page');
+      // Redirect to desktop success page with the callback URL
+      const encodedCallbackUrl = encodeURIComponent(response.callbackUrl);
+      navigate(`/auth/desktop-success?callbackUrl=${encodedCallbackUrl}`);
+      return;
+    }
+
+    // Standard MFA flow
     if (response.nextStep !== undefined && response.allowedMethods) {
       // Create a new auth step
       const newStep: AuthStep = {
@@ -285,9 +298,18 @@ export const AuthenticationView = () => {
   };
 
   // Handle successful authentication
-  const handleAuthComplete = () => {
+  const handleAuthComplete = (response?: AuthResponse | DesktopAuthResponse) => {
+    // Check if this is a desktop auth response - redirect to success page
+    if (response && isDesktopAuthResponse(response)) {
+      console.log('[Auth] Desktop auth complete, redirecting to success page');
+      // Redirect to desktop success page with the callback URL
+      const encodedCallbackUrl = encodeURIComponent(response.callbackUrl);
+      navigate(`/auth/desktop-success?callbackUrl=${encodedCallbackUrl}`);
+      return;
+    }
+
+    // Standard web flow
     checkUserSession?.();
-    // router.push('/');
     navigate('/');
   };
 
@@ -301,6 +323,12 @@ export const AuthenticationView = () => {
 
       setLoading(true);
       const authResponse = await SignInWithGoogle({ credential });
+
+      // Check for desktop auth response
+      if (isDesktopAuthResponse(authResponse)) {
+        handleAuthComplete(authResponse);
+        return;
+      }
 
       // Check if this is the final step
       if (authResponse.accessToken && authResponse.refreshToken) {
@@ -334,6 +362,12 @@ export const AuthenticationView = () => {
         authResponse = await SignInWithAzureAd(credential);
       }
 
+      // Check for desktop auth response
+      if (isDesktopAuthResponse(authResponse)) {
+        handleAuthComplete(authResponse);
+        return;
+      }
+
       // Check if this is the final step
       if (authResponse.accessToken && authResponse.refreshToken) {
         handleAuthComplete();
@@ -357,6 +391,12 @@ export const AuthenticationView = () => {
 
       setLoading(true);
       const authResponse = await SignInWithOAuth(credentials);
+
+      // Check for desktop auth response
+      if (isDesktopAuthResponse(authResponse)) {
+        handleAuthComplete(authResponse);
+        return;
+      }
 
       // Check if this is the final step
       if (authResponse.accessToken && authResponse.refreshToken) {
@@ -441,19 +481,35 @@ export const AuthenticationView = () => {
     }
   }, [currentStep, selectedTab]);
 
+  // Detect desktop auth source from URL parameter
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const source = urlParams.get('source');
+
+    if (source === 'desktop') {
+      setIsDesktopAuth(true);
+      console.log('[Auth] Desktop authentication flow detected');
+    }
+  }, []);
+
   useEffect(() => {
     const checkOrgExists = async () => {
       try {
         const response = await OrgExists();
+        // Preserve query parameters (like ?source=desktop) when redirecting
+        const currentSearch = window.location.search;
         if (response.exists === false) {
           // setSnackbar({
           //   open: true,
           //   message: `Set up account to continue`,
           //   severity: 'error',
           // });
-          navigate('/auth/sign-up');
+          navigate(`/auth/sign-up${currentSearch}`);
         } else {
-          navigate('/auth/sign-in');
+          // Only redirect if we're not already on sign-in page
+          if (!window.location.pathname.includes('/auth/sign-in')) {
+            navigate(`/auth/sign-in${currentSearch}`);
+          }
         }
       } catch (err) {
         console.error('Error checking if organization exists:', err);

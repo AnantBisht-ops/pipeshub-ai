@@ -55,6 +55,7 @@ import { CrawlingManagerContainer } from './modules/crawling_manager/container/c
 import createCrawlingManagerRouter from './modules/crawling_manager/routes/cm_routes';
 import { MigrationService } from './modules/configuration_manager/services/migration.service';
 import { createTeamsRouter } from './modules/user_management/routes/teams.routes';
+import { OpenAnalystContainer, createOpenAnalystRouter } from './modules/openanalyst';
 
 const loggerConfig = {
   service: 'Application',
@@ -74,6 +75,7 @@ export class Application {
   private mailServiceContainer!: Container;
   private notificationContainer!: Container;
   private crawlingManagerContainer!: Container;
+  private openAnalystContainer!: Container;
   private port: number;
 
   constructor() {
@@ -137,6 +139,11 @@ export class Application {
           configurationManagerConfig,
           appConfig,
         );
+
+      this.openAnalystContainer = await OpenAnalystContainer.initialize(
+        this.authServiceContainer,
+        appConfig,
+      );
 
       // binding prometheus to all services routes
       this.logger.debug('Binding Prometheus Service with other services');
@@ -257,13 +264,63 @@ export class Application {
     this.app.use(requestContextMiddleware);
 
     // CORS - ensure this matches your frontend domain
+    // Parse allowed origins from environment
+    const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:3000')
+      .split(',')
+      .map(origin => origin.trim())
+      .filter(Boolean);
+
+    // Desktop protocol origins for OpenAnalyst VSCode extension
+    const desktopOrigins = [
+      'openanalyst://',
+      'vscode://',
+      'vscode-webview://',
+    ];
+
+    const allOrigins = [...allowedOrigins, ...desktopOrigins];
+
     this.app.use(
       cors({
-        origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'], // Be more specific than '*'
+        origin: (origin, callback) => {
+          // Allow requests with no origin (mobile apps, Postman, desktop apps, curl)
+          if (!origin) {
+            callback(null, true);
+            return;
+          }
+
+          // Check if origin is in allowed list
+          const isAllowed = allOrigins.some(allowed => {
+            // Exact match
+            if (allowed === origin) return true;
+            // Protocol match (for custom protocols like pipeshub://)
+            if (origin.startsWith(allowed)) return true;
+            // Wildcard localhost ports (allow any localhost port in development)
+            if (allowed.includes('localhost') && origin.match(/^https?:\/\/localhost:\d+$/)) {
+              return true;
+            }
+            return false;
+          });
+
+          if (isAllowed) {
+            callback(null, true);
+          } else {
+            this.logger.warn('[CORS] Blocked origin:', { origin });
+            callback(new Error('Not allowed by CORS'));
+          }
+        },
         credentials: true,
-        exposedHeaders: ['x-session-token', 'content-disposition'],
-        methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-        allowedHeaders: ['Content-Type', 'Authorization', 'x-session-token']
+        exposedHeaders: [
+          'x-session-token',
+          'content-disposition',
+          'x-auth-source',  // Desktop auth source header
+        ],
+        methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+        allowedHeaders: [
+          'Content-Type',
+          'Authorization',
+          'x-session-token',
+          'x-auth-source',  // Desktop auth source header
+        ],
       }),
     );
 
@@ -374,6 +431,12 @@ export class Application {
       '/api/v1/crawlingManager',
       createCrawlingManagerRouter(this.crawlingManagerContainer),
     );
+
+    // openanalyst routes (desktop extension)
+    this.app.use(
+      '/api/v1/openanalyst',
+      createOpenAnalystRouter(this.openAnalystContainer),
+    );
   }
 
   private configureErrorHandling(): void {
@@ -412,6 +475,7 @@ export class Application {
       await ConfigurationManagerContainer.dispose();
       await MailServiceContainer.dispose();
       await CrawlingManagerContainer.dispose();
+      await OpenAnalystContainer.dispose();
 
       this.logger.info('Application stopped successfully');
     } catch (error) {
