@@ -12,8 +12,8 @@ import { ErrorMiddleware } from './libs/middlewares/error.middleware';
 import { createUserRouter } from './modules/user_management/routes/users.routes';
 import { createUserGroupRouter } from './modules/user_management/routes/userGroups.routes';
 import { createOrgRouter } from './modules/user_management/routes/org.routes';
-import organizationRoutes from './modules/org_management/routes/organization.routes';
-import projectRoutes from './modules/project_management/routes/project.routes';
+import { createOrganizationRouter } from './modules/org_management/routes/organization.routes';
+import { createProjectRouter } from './modules/project_management/routes/project.routes';
 import {
   createConversationalRouter,
   createSemanticSearchRouter,
@@ -76,6 +76,7 @@ export class Application {
   private notificationContainer!: Container;
   private crawlingManagerContainer!: Container;
   private openAnalystContainer!: Container;
+  private appConfig!: AppConfig;
   private port: number;
 
   constructor() {
@@ -91,6 +92,7 @@ export class Application {
       // Loads configuration
       const configurationManagerConfig = loadConfigurationManagerConfig();
       const appConfig = await loadAppConfig();
+      this.appConfig = appConfig;
 
       this.tokenManagerContainer = await TokenManagerContainer.initialize(
         configurationManagerConfig,
@@ -271,8 +273,10 @@ export class Application {
       .filter(Boolean);
 
     // Desktop protocol origins for OpenAnalyst VSCode extension
+    // Read custom protocol from environment variable (default: openanalyst)
+    const customProtocol = process.env.DESKTOP_CUSTOM_PROTOCOL || 'openanalyst';
     const desktopOrigins = [
-      'openanalyst://',
+      `${customProtocol}://`,
       'vscode://',
       'vscode-webview://',
     ];
@@ -365,8 +369,8 @@ export class Application {
       createUserGroupRouter(this.entityManagerContainer),
     );
     this.app.use('/api/v1/org', createOrgRouter(this.entityManagerContainer));
-    this.app.use('/api/v1/organizations', organizationRoutes);
-    this.app.use('/api/v1/projects', projectRoutes);
+    this.app.use('/api/v1/organizations', createOrganizationRouter(this.appConfig));
+    this.app.use('/api/v1/projects', createProjectRouter(this.appConfig));
 
     this.app.use('/api/v1/saml', createSamlRouter(this.authServiceContainer, this.entityManagerContainer));
 

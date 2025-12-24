@@ -63,8 +63,8 @@ services:
       - REDIS_URL=redis://:${REDIS_PASSWORD:-}@redis:6379
 
       # MongoDB config
-      - MONGO_URI=mongodb://${MONGO_USERNAME:-admin}:${MONGO_PASSWORD:-password}@mongodb:27017/?authSource=admin
-      - MONGO_DB_NAME=es
+      - MONGO_URI=${MONGO_URI:-mongodb://${MONGO_USERNAME:-admin}:${MONGO_PASSWORD:-password}@mongodb:27017/?authSource=admin}
+      - MONGO_DB_NAME=${MONGO_DB_NAME:-es}
 
       # Qdrant config
       - QDRANT_API_KEY=${QDRANT_API_KEY:-your_qdrant_secret_api_key}
@@ -76,6 +76,11 @@ services:
 
       # OpenAI config (for LLM/Embeddings)
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+
+      # Desktop OAuth config (for OpenAnalyst VSCode extension)
+      - DESKTOP_CUSTOM_PROTOCOL=${DESKTOP_CUSTOM_PROTOCOL:-openanalyst}
+      - DESKTOP_TOKEN_EXPIRY=${DESKTOP_TOKEN_EXPIRY:-30d}
+      - DESKTOP_REFRESH_TOKEN_EXPIRY=${DESKTOP_REFRESH_TOKEN_EXPIRY:-90d}
     depends_on:
       qdrant:
         condition: service_healthy

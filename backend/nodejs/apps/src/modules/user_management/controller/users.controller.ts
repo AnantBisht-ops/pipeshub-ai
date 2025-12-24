@@ -189,7 +189,7 @@ export class UserController {
     next: NextFunction,
   ): Promise<void> {
     try {
-      const { email } = req.body;
+      const { email } = req.query;
 
       const users = await Users.find({
         email: email,

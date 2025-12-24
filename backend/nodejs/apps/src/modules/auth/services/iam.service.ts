@@ -90,7 +90,7 @@ export class IamService {
           Authorization: `Bearer ${authServiceToken}`,
           'Content-Type': 'application/json',
         },
-        data: {
+        params: {
           email: email,
         },
       };

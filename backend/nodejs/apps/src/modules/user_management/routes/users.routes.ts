@@ -149,9 +149,13 @@ const updateUserValidationSchema = z.object({
   params: UserIdUrlParams,
   headers: z.object({}),
 });
+const emailQueryParams = z.object({
+  email: z.string().email('Invalid email format'),
+});
+
 const emailIdValidationSchema = z.object({
-  body: updateEmailBody,
-  query: z.object({}),
+  body: z.object({}),
+  query: emailQueryParams,
   params: z.object({}),
   headers: z.object({}),
 });

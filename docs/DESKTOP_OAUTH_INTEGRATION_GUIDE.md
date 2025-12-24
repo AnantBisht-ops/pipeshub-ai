@@ -78,19 +78,11 @@ The desktop OAuth flow allows users to authenticate in their default web browser
 When user initiates sign-in from the desktop app, open the following URL in their default browser:
 
 **Authentication URL:**
-```
-https://<your-domain>/auth/sign-in?source=desktop
-```
 
-**Development:**
-```
-http://localhost:3000/auth/sign-in?source=desktop
-```
-
-**Production:**
-```
-https://web.openanalyst.com/auth/sign-in?source=desktop
-```
+| Environment | URL |
+|-------------|-----|
+| Development | `http://localhost:3000/auth/sign-in?source=desktop` |
+| Production | `https://web.openanalyst.com/auth/sign-in?source=desktop` |
 
 The `?source=desktop` query parameter is **required** - it tells the backend to:
 - Generate tokens with extended expiry (30 days)
@@ -170,9 +162,11 @@ openanalyst://token-refreshed?token=<URL_ENCODED_NEW_TOKEN>
 ### Success Response
 
 After successful authentication, the browser redirects to a success page at:
-```
-https://<domain>/auth/desktop-success?callbackUrl=<ENCODED_CALLBACK_URL>
-```
+
+| Environment | URL |
+|-------------|-----|
+| Development | `http://localhost:3000/auth/desktop-success?callbackUrl=<ENCODED_CALLBACK_URL>` |
+| Production | `https://web.openanalyst.com/auth/desktop-success?callbackUrl=<ENCODED_CALLBACK_URL>` |
 
 The page displays:
 - "Authentication Successful!" message
@@ -276,11 +270,38 @@ Authorization: Bearer <ACCESS_TOKEN>
 | Development | `http://localhost:3000/api/v1/` |
 | Production | `https://web.openanalyst.com/api/v1/` |
 
-### Example Request Headers
+### OpenAnalyst-Specific Endpoints
 
+These endpoints are specifically designed for the desktop extension:
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/openanalyst/health` | Health check |
+| GET | `/api/v1/openanalyst/providers` | List AI provider profiles |
+| GET | `/api/v1/openanalyst/providers/:id` | Get specific provider |
+| GET | `/api/v1/openanalyst/providers/:id/api-key` | Get decrypted API key |
+| POST | `/api/v1/openanalyst/providers` | Create new AI provider |
+| PUT | `/api/v1/openanalyst/providers/:id` | Update AI provider |
+| POST | `/api/v1/openanalyst/providers/:id/test` | Test provider connection |
+| DELETE | `/api/v1/openanalyst/providers/:id` | Delete AI provider |
+| GET | `/api/v1/openanalyst/settings` | Get extension settings |
+| PUT | `/api/v1/openanalyst/settings` | Update extension settings |
+| POST | `/api/v1/openanalyst/settings/reset` | Reset settings to defaults |
+| PUT | `/api/v1/openanalyst/settings/sync` | Sync settings |
+| GET | `/api/v1/openanalyst/user/profile` | Get current user profile |
+
+### Example Request
+
+**Development:**
+```http
+GET http://localhost:3000/api/v1/users/<userId>
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+Content-Type: application/json
 ```
-GET /api/v1/user/profile
-Host: web.openanalyst.com
+
+**Production:**
+```http
+GET https://web.openanalyst.com/api/v1/users/<userId>
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 Content-Type: application/json
 ```
@@ -325,8 +346,13 @@ openanalyst://auth-error?error=<URL_ENCODED_ERROR>&code=<ERROR_CODE>
 
 ### Refresh Endpoint
 
+| Environment | URL |
+|-------------|-----|
+| Development | `POST http://localhost:3000/api/v1/userAccount/refresh-token` |
+| Production | `POST https://web.openanalyst.com/api/v1/userAccount/refresh-token` |
+
+**Headers:**
 ```
-POST /api/v1/userAccount/refresh-token
 Authorization: Bearer <REFRESH_TOKEN>
 Content-Type: application/json
 ```
@@ -350,8 +376,13 @@ openanalyst://token-refreshed?token=<NEW_ACCESS_TOKEN>
 
 ### Logout Endpoint
 
+| Environment | URL |
+|-------------|-----|
+| Development | `POST http://localhost:3000/api/v1/userAccount/logout` |
+| Production | `POST https://web.openanalyst.com/api/v1/userAccount/logout` |
+
+**Headers:**
 ```
-POST /api/v1/userAccount/logout
 Authorization: Bearer <ACCESS_TOKEN>
 ```
 
@@ -373,12 +404,21 @@ Authorization: Bearer <ACCESS_TOKEN>
 
 ## Quick Reference
 
-### URLs
+### URLs (Production)
 
 | Purpose | URL |
 |---------|-----|
-| Sign In | `https://<domain>/auth/sign-in?source=desktop` |
-| API Base | `https://<domain>/api/v1/` |
+| Sign In | `https://web.openanalyst.com/auth/sign-in?source=desktop` |
+| API Base | `https://web.openanalyst.com/api/v1/` |
+| OpenAnalyst API | `https://web.openanalyst.com/api/v1/openanalyst/` |
+
+### URLs (Development)
+
+| Purpose | URL |
+|---------|-----|
+| Sign In | `http://localhost:3000/auth/sign-in?source=desktop` |
+| API Base | `http://localhost:3000/api/v1/` |
+| OpenAnalyst API | `http://localhost:3000/api/v1/openanalyst/` |
 
 ### Callback URLs
 
