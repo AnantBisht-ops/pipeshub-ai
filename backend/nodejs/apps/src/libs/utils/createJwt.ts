@@ -316,3 +316,105 @@ export const generateDesktopTokens = (
     authSource: AuthSource.DESKTOP,
   };
 };
+
+/**
+ * Organization data for desktop auth callback JWT
+ */
+export interface DesktopCallbackOrganization {
+  _id: string;
+  name: string;
+  slug: string;
+  role: 'admin' | 'member';
+  accountType: 'individual' | 'business';
+}
+
+/**
+ * User data for desktop auth callback JWT
+ */
+export interface DesktopCallbackUser {
+  _id: string;
+  email: string;
+  fullName: string;
+  slug: string;
+}
+
+/**
+ * Complete payload structure for desktop auth callback JWT
+ * This JWT is passed in the callback URL and contains all auth data
+ */
+export interface DesktopCallbackJwtPayload {
+  success: true;
+  isNewUser: boolean;
+  data: {
+    accessToken: string;
+    refreshToken: string;
+    expiresIn: number;
+    user: DesktopCallbackUser;
+    organizations: DesktopCallbackOrganization[];
+    currentOrgId: string;
+  };
+  iat?: number;
+  exp?: number;
+}
+
+/**
+ * Input data for generating desktop callback JWT
+ */
+export interface DesktopCallbackJwtInput {
+  accessToken: string;
+  refreshToken: string;
+  expiresIn: number;
+  user: {
+    _id: string;
+    email: string;
+    fullName: string;
+    slug: string;
+  };
+  organizations: DesktopCallbackOrganization[];
+  currentOrgId: string;
+  isNewUser: boolean;
+}
+
+/**
+ * Generate desktop auth callback JWT
+ *
+ * Creates a JWT containing the complete auth response for desktop apps.
+ * This JWT is passed in the callback URL (openanalyst://auth-callback?token=<JWT>)
+ * and when decoded by the desktop app, provides all necessary auth data.
+ *
+ * JWT expiry is set to 5 minutes - just enough time for the desktop app
+ * to receive and decode it. The actual accessToken inside has 30-day expiry.
+ *
+ * @param jwtSecret - JWT secret for signing
+ * @param input - Complete auth data to include in JWT payload
+ * @returns Signed JWT string
+ */
+export const generateDesktopCallbackJwt = (
+  jwtSecret: string,
+  input: DesktopCallbackJwtInput,
+): string => {
+  const payload: Omit<DesktopCallbackJwtPayload, 'iat' | 'exp'> = {
+    success: true,
+    isNewUser: input.isNewUser,
+    data: {
+      accessToken: input.accessToken,
+      refreshToken: input.refreshToken,
+      expiresIn: input.expiresIn,
+      user: {
+        _id: input.user._id,
+        email: input.user.email,
+        fullName: input.user.fullName,
+        slug: input.user.slug,
+      },
+      organizations: input.organizations,
+      currentOrgId: input.currentOrgId,
+    },
+  };
+
+  // Short expiry - this JWT is only for transfer, not for API auth
+  // The accessToken inside has the actual 30-day expiry
+  return jwt.sign(payload, jwtSecret, {
+    expiresIn: '5m',
+    issuer: 'pipeshub-desktop-callback',
+  });
+};

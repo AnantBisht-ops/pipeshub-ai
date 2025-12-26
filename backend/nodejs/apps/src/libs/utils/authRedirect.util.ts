@@ -278,3 +278,25 @@ export const getTokenRefreshCallbackUrl = (
   // Web doesn't need callback URL for token refresh
   return '';
 };
+
+/**
+ * Generate desktop callback URL with JWT containing full auth data
+ *
+ * The JWT contains:
+ * - success: true
+ * - isNewUser: boolean
+ * - data: { accessToken, refreshToken, expiresIn, user, organizations, currentOrgId }
+ *
+ * Desktop app decodes this JWT to get all auth information.
+ *
+ * @param callbackJwt - The JWT containing complete auth data
+ * @param config - Optional configuration override
+ * @returns Callback URL with JWT (e.g., openanalyst://auth-callback?token=<JWT>)
+ */
+export const getDesktopCallbackUrlWithJwt = (
+  callbackJwt: string,
+  config?: Partial<AuthCallbackConfig>,
+): string => {
+  const { customProtocol } = { ...getDefaultConfig(), ...config };
+  return `${customProtocol}://auth-callback?token=${encodeURIComponent(callbackJwt)}`;
+};

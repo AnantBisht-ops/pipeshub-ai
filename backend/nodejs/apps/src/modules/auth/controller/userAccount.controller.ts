@@ -10,6 +10,8 @@ import {
   mailJwtGenerator,
   refreshTokenJwtGenerator,
   generateDesktopTokens,
+  generateDesktopCallbackJwt,
+  DesktopCallbackOrganization,
 } from '../../../libs/utils/createJwt';
 import {
   AuthSource,
@@ -17,6 +19,7 @@ import {
 } from '../../../libs/middlewares/sourceDetection.middleware';
 import {
   buildDesktopAuthResponse,
+  getDesktopCallbackUrlWithJwt,
 } from '../../../libs/utils/authRedirect.util';
 import { generateOtp } from '../utils/generateOtp';
 
@@ -62,7 +65,9 @@ import {
   OAUTH_AUTH_CONFIG_PATH,
 } from '../services/cm.service';
 import { AppConfig } from '../../tokens_manager/config/config';
-import { Org } from '../../user_management/schema/org.schema';
+import { Org, IOrg } from '../../user_management/schema/org.schema';
+import { Users } from '../../user_management/schema/users.schema';
+import { UserGroups } from '../../user_management/schema/userGroup.schema';
 
 const {
   LOGIN,
@@ -1309,20 +1314,24 @@ export class UserAccountController {
         const isDesktopAuth = authSource === AuthSource.DESKTOP || sessionInfo.isDesktopAuth === true;
 
         if (isDesktopAuth) {
-          // DESKTOP AUTHENTICATION FLOW - Generate 30-day tokens
+          // DESKTOP AUTHENTICATION FLOW - Generate 30-day tokens with full org data
           this.logger.info('[Auth] Desktop authentication successful', {
             userId: user._id,
             email: user.email,
             authSource: AuthSource.DESKTOP,
           });
 
+          // Determine if this is a new user (first login)
+          const isNewUser = !user.hasLoggedIn;
+
           // Generate desktop tokens (30-day access, 90-day refresh)
+          const currentOrgId = sessionInfo.orgId || user.orgId;
           const desktopTokens = generateDesktopTokens(
             this.config.jwtSecret,
             this.config.scopedJwtSecret,
             {
               _id: user._id,
-              orgId: sessionInfo.orgId || user.orgId,
+              orgId: currentOrgId,
               email: user.email,
               fullName: user.fullName,
               firstName: user.firstName,
@@ -1331,21 +1340,70 @@ export class UserAccountController {
             },
           );
 
-          // Build desktop response with callback URL
-          const desktopResponse = buildDesktopAuthResponse(
-            desktopTokens,
-            {
-              _id: user._id,
-              email: user.email,
-              fullName: user.fullName,
-              firstName: user.firstName,
-              lastName: user.lastName,
-              orgId: sessionInfo.orgId || user.orgId,
-            },
+          // Fetch user's organizations with roles
+          const userDoc = await Users.findById(user._id);
+          const organizations = await Org.find({
+            $or: [
+              { _id: { $in: userDoc?.organizations || [] } },
+              { _id: currentOrgId },
+              { contactEmail: user.email }
+            ],
+            isDeleted: false
+          }).select('_id slug registeredName shortName accountType contactEmail') as IOrg[];
+
+          // Get user role in each organization
+          const orgsWithRoles: DesktopCallbackOrganization[] = await Promise.all(
+            organizations.map(async (org: IOrg) => {
+              // Check if user is in admin group for this org
+              const adminGroup = await UserGroups.findOne({
+                orgId: org._id,
+                users: user._id,
+                type: 'admin'
+              });
+
+              // Check if user is the org creator
+              const isCreator = org.contactEmail === user.email;
+
+              return {
+                _id: (org._id as mongoose.Types.ObjectId).toString(),
+                name: org.registeredName || org.shortName || 'Organization',
+                slug: org.slug || '',
+                role: (adminGroup || isCreator ? 'admin' : 'member') as 'admin' | 'member',
+                accountType: (org.accountType || 'individual') as 'individual' | 'business',
+              };
+            })
           );
 
+          // Generate callback JWT with complete auth data
+          const callbackJwt = generateDesktopCallbackJwt(
+            this.config.jwtSecret,
+            {
+              accessToken: desktopTokens.accessToken,
+              refreshToken: desktopTokens.refreshToken,
+              expiresIn: desktopTokens.expiresIn,
+              user: {
+                _id: user._id.toString(),
+                email: user.email,
+                fullName: user.fullName || '',
+                slug: user.slug || '',
+              },
+              organizations: orgsWithRoles,
+              currentOrgId: currentOrgId.toString(),
+              isNewUser,
+            }
+          );
+
+          // Generate callback URL with JWT
+          const callbackUrl = getDesktopCallbackUrlWithJwt(callbackJwt);
+
+          this.logger.info('[Auth] Desktop callback JWT generated', {
+            userId: user._id,
+            orgsCount: orgsWithRoles.length,
+            isNewUser,
+          });
+
           // Update user login status if first login
-          if (!user.hasLoggedIn) {
+          if (isNewUser) {
             const userInfo = {
               ...user,
               hasLoggedIn: true,
@@ -1354,7 +1412,24 @@ export class UserAccountController {
             this.logger.info('[Auth] Desktop user hasLoggedIn updated');
           }
 
-          res.status(200).json(desktopResponse);
+          // Build response with new callback URL
+          const desktopResponse = buildDesktopAuthResponse(
+            desktopTokens,
+            {
+              _id: user._id,
+              email: user.email,
+              fullName: user.fullName,
+              firstName: user.firstName,
+              lastName: user.lastName,
+              orgId: currentOrgId,
+            },
+          );
+
+          // Override callbackUrl with the new JWT-based one
+          res.status(200).json({
+            ...desktopResponse,
+            callbackUrl,
+          });
           return;
         }
 

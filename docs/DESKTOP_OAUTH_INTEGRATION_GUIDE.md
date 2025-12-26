@@ -11,11 +11,12 @@ This document provides complete integration details for desktop application deve
 3. [Step-by-Step Implementation](#step-by-step-implementation)
 4. [Custom Protocol Scheme](#custom-protocol-scheme)
 5. [Callback URL Format](#callback-url-format)
-6. [Token Details](#token-details)
-7. [API Authentication](#api-authentication)
-8. [Error Handling](#error-handling)
-9. [Token Refresh](#token-refresh)
-10. [Logout](#logout)
+6. [Callback JWT Payload Structure](#callback-jwt-payload-structure)
+7. [Token Details](#token-details)
+8. [API Authentication](#api-authentication)
+9. [Error Handling](#error-handling)
+10. [Token Refresh](#token-refresh)
+11. [Logout](#logout)
 
 ---
 
@@ -110,14 +111,17 @@ The application must handle URLs in the format:
 When the user successfully authenticates, the browser will redirect to:
 
 ```
-openanalyst://auth-callback?token=<JWT_ACCESS_TOKEN>
+openanalyst://auth-callback?token=<CALLBACK_JWT>
 ```
 
-Your application should:
+**Important:** The `token` parameter is a **callback JWT** that contains the complete authentication data. Your application should:
+
 1. Parse the URL to extract the `token` parameter
 2. URL-decode the token value
-3. Store the token securely
-4. Update the UI to show authenticated state
+3. **Decode the JWT** to extract the payload (see [Callback JWT Payload Structure](#callback-jwt-payload-structure))
+4. Extract `accessToken`, `refreshToken`, user data, and organizations from the payload
+5. Store the `accessToken` and `refreshToken` securely
+6. Update the UI to show authenticated state
 
 ---
 
@@ -178,18 +182,144 @@ When the button is clicked (or auto-triggered), it opens:
 openanalyst://auth-callback?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```
 
-### Extracting the Token
+### Extracting and Decoding the Callback JWT
 
-The token is URL-encoded. After extracting from the URL:
+The `token` parameter is a **Callback JWT** that contains the complete authentication response. Follow these steps:
 
-1. Get the `token` query parameter
-2. URL-decode the value
-3. The result is a valid JWT
+1. **Extract from URL:** Get the `token` query parameter from the callback URL
+2. **URL-decode:** Decode the URL-encoded token value
+3. **Decode JWT:** Decode the JWT to get the payload (you can use `jwt-decode` or similar library)
+4. **Extract tokens:** Get `data.accessToken` and `data.refreshToken` from the payload
+5. **Store securely:** Save both tokens for API authentication
 
 **Example:**
 ```
 Input URL: openanalyst://auth-callback?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 Extracted token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+Decoded payload: See "Callback JWT Payload Structure" section below
+```
+
+---
+
+## Callback JWT Payload Structure
+
+The callback JWT contains the **complete authentication response**. When decoded, you get:
+
+```json
+{
+  "success": true,
+  "isNewUser": false,
+  "data": {
+    "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "expiresIn": 2592000,
+    "user": {
+      "_id": "675e9a1b2c3d4e5f6a7b8c9d",
+      "email": "user@example.com",
+      "fullName": "John Doe",
+      "slug": "john-doe"
+    },
+    "organizations": [
+      {
+        "_id": "675e9a1b2c3d4e5f6a7b8c9e",
+        "name": "My Company",
+        "slug": "my-company",
+        "role": "admin",
+        "accountType": "individual"
+      }
+    ],
+    "currentOrgId": "675e9a1b2c3d4e5f6a7b8c9e"
+  },
+  "iat": 1766523499,
+  "exp": 1766523799,
+  "iss": "pipeshub-desktop-callback"
+}
+```
+
+### Payload Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `success` | boolean | Always `true` for successful auth |
+| `isNewUser` | boolean | `true` if this is user's first login |
+| `data.accessToken` | string | JWT for API authentication (30-day expiry) |
+| `data.refreshToken` | string | JWT for token refresh (90-day expiry) |
+| `data.expiresIn` | number | Access token expiry in seconds (2592000 = 30 days) |
+| `data.user._id` | string | User's unique identifier |
+| `data.user.email` | string | User's email address |
+| `data.user.fullName` | string | User's display name |
+| `data.user.slug` | string | User's URL-friendly identifier |
+| `data.organizations` | array | List of organizations user belongs to |
+| `data.organizations[]._id` | string | Organization ID |
+| `data.organizations[].name` | string | Organization name |
+| `data.organizations[].slug` | string | Organization URL-friendly identifier |
+| `data.organizations[].role` | string | User's role: `admin` or `member` |
+| `data.organizations[].accountType` | string | `individual` or `business` |
+| `data.currentOrgId` | string | Currently selected organization ID |
+| `iat` | number | Callback JWT issued timestamp |
+| `exp` | number | Callback JWT expiry (5 minutes after issue) |
+| `iss` | string | Issuer: `pipeshub-desktop-callback` |
+
+**Note:** The callback JWT itself expires in 5 minutes (for security), but the `accessToken` inside has a 30-day expiry.
+
+### Code Example (TypeScript/JavaScript)
+
+```typescript
+import { jwtDecode } from 'jwt-decode';
+
+interface CallbackPayload {
+  success: boolean;
+  isNewUser: boolean;
+  data: {
+    accessToken: string;
+    refreshToken: string;
+    expiresIn: number;
+    user: {
+      _id: string;
+      email: string;
+      fullName: string;
+      slug: string;
+    };
+    organizations: Array<{
+      _id: string;
+      name: string;
+      slug: string;
+      role: 'admin' | 'member';
+      accountType: 'individual' | 'business';
+    }>;
+    currentOrgId: string;
+  };
+}
+
+function handleAuthCallback(callbackUrl: string) {
+  // 1. Parse the callback URL
+  const url = new URL(callbackUrl);
+  const encodedToken = url.searchParams.get('token');
+
+  if (!encodedToken) {
+    throw new Error('No token found in callback URL');
+  }
+
+  // 2. URL-decode the token
+  const callbackJwt = decodeURIComponent(encodedToken);
+
+  // 3. Decode the JWT to get payload
+  const payload = jwtDecode<CallbackPayload>(callbackJwt);
+
+  // 4. Extract tokens and user data
+  const { accessToken, refreshToken, user, organizations, currentOrgId } = payload.data;
+  const { isNewUser } = payload;
+
+  // 5. Store tokens securely
+  await secureStorage.set('accessToken', accessToken);
+  await secureStorage.set('refreshToken', refreshToken);
+
+  // 6. Use user and organization data
+  console.log(`Welcome ${user.fullName}!`);
+  console.log(`Organizations: ${organizations.map(o => o.name).join(', ')}`);
+
+  return { accessToken, refreshToken, user, organizations, currentOrgId, isNewUser };
+}
 ```
 
 ---
@@ -249,7 +379,7 @@ The decoded JWT payload contains:
 | Issuer | `pipeshub-desktop` |
 | Scopes | `token:refresh` |
 
-**Note:** The refresh token is included in the API response but not in the callback URL by default. If you need both tokens in the callback URL, contact the backend team to enable `getSuccessCallbackUrlWithTokens`.
+**Note:** Both access token and refresh token are included in the callback JWT payload (see [Callback JWT Payload Structure](#callback-jwt-payload-structure) above). Decode the callback JWT to access both tokens.
 
 ---
 
