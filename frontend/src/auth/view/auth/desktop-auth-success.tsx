@@ -92,10 +92,13 @@ export default function DesktopAuthSuccess() {
           maxWidth: 480,
           mx: 'auto',
           mt: 4,
-          backdropFilter: 'blur(6px)',
-          bgcolor: (theme) => alpha(theme.palette.background.paper, 0.9),
-          boxShadow: (theme) => `0 0 2px ${alpha(theme.palette.grey[500], 0.2)},
-                              0 12px 24px -4px ${alpha(theme.palette.grey[500], 0.12)}`,
+          backdropFilter: 'blur(10px)',
+          bgcolor: (theme) => alpha('#2a2a2a', 0.95), // Dark charcoal for OpenAnalyst
+          boxShadow: (theme) => `0 0 30px ${alpha('#000000', 0.5)},
+                              0 12px 40px -4px ${alpha('#000000', 0.3)}`,
+          borderRadius: 3,
+          border: '1px solid',
+          borderColor: (theme) => alpha('#ffffff', 0.1),
         }}
       >
         <CardContent sx={{ pt: 5, pb: 5, textAlign: 'center' }}>
@@ -115,11 +118,25 @@ export default function DesktopAuthSuccess() {
             <Iconify icon={alertTriangleIcon} width={40} sx={{ color: 'error.main' }} />
           </Box>
 
-          <Typography variant="h5" sx={{ mb: 2, fontWeight: 700 }}>
+          <Typography
+            variant="h5"
+            sx={{
+              mb: 2,
+              fontWeight: 700,
+              color: '#ffffff',
+              textShadow: '0 0 20px rgba(255, 255, 255, 0.3)',
+            }}
+          >
             Invalid Request
           </Typography>
 
-          <Typography variant="body2" sx={{ color: 'text.secondary', mb: 3 }}>
+          <Typography
+            variant="body2"
+            sx={{
+              color: (theme) => alpha('#ffffff', 0.7),
+              mb: 3,
+            }}
+          >
             The authentication callback URL is missing. Please try signing in again from the desktop app.
           </Typography>
 
@@ -143,10 +160,13 @@ export default function DesktopAuthSuccess() {
         maxWidth: 480,
         mx: 'auto',
         mt: 4,
-        backdropFilter: 'blur(6px)',
-        bgcolor: (theme) => alpha(theme.palette.background.paper, 0.9),
-        boxShadow: (theme) => `0 0 2px ${alpha(theme.palette.grey[500], 0.2)},
-                            0 12px 24px -4px ${alpha(theme.palette.grey[500], 0.12)}`,
+        backdropFilter: 'blur(10px)',
+        bgcolor: (theme) => alpha('#2a2a2a', 0.95), // Dark charcoal for OpenAnalyst
+        boxShadow: (theme) => `0 0 30px ${alpha('#000000', 0.5)},
+                            0 12px 40px -4px ${alpha('#000000', 0.3)}`,
+        borderRadius: 3,
+        border: '1px solid',
+        borderColor: (theme) => alpha('#ffffff', 0.1),
       }}
     >
       <CardContent sx={{ pt: 5, pb: 5, textAlign: 'center' }}>
@@ -168,12 +188,26 @@ export default function DesktopAuthSuccess() {
         </Box>
 
         {/* Title */}
-        <Typography variant="h5" sx={{ mb: 2, fontWeight: 700 }}>
+        <Typography
+          variant="h5"
+          sx={{
+            mb: 2,
+            fontWeight: 700,
+            color: '#ffffff',
+            textShadow: '0 0 20px rgba(255, 255, 255, 0.3)',
+          }}
+        >
           Authentication Successful!
         </Typography>
 
         {/* Description */}
-        <Typography variant="body2" sx={{ color: 'text.secondary', mb: 4 }}>
+        <Typography
+          variant="body2"
+          sx={{
+            color: (theme) => alpha('#ffffff', 0.7),
+            mb: 4,
+          }}
+        >
           You have been successfully authenticated. Click the button below to open OpenAnalyst and complete the sign-in process.
         </Typography>
 
@@ -223,7 +257,12 @@ export default function DesktopAuthSuccess() {
 
         {/* Secondary Action */}
         <Box sx={{ mt: 3 }}>
-          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+          <Typography
+            variant="body2"
+            sx={{
+              color: (theme) => alpha('#ffffff', 0.7),
+            }}
+          >
             Want to use the web app instead?{' '}
             <Button
               variant="text"
