@@ -33,8 +33,13 @@ export class MongoService {
 
     try {
       const { uri, db, options } = this.config;
+
+      // Log the MongoDB URI being used (hide password for security)
+      const sanitizedUri = uri.replace(/:([^:@]+)@/, ':****@');
+      logger.info(`Attempting to connect to MongoDB: ${sanitizedUri}`);
+
       const defaultOptions = {
-        serverSelectionTimeoutMS: 5000,
+        serverSelectionTimeoutMS: 30000, // Increased to 30 seconds for Atlas
         socketTimeoutMS: 45000,
         family: 4,
         maxPoolSize: 10,

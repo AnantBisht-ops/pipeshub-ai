@@ -75,9 +75,22 @@ export const OrganizationSwitcher: React.FC = () => {
     );
   }
 
-  const currentOrgData = organizations.find(
-    org => org.organization._id === currentOrg?._id
-  );
+  // Debug: Log the organizations structure
+  console.log('[DEBUG OrganizationSwitcher] organizations:', organizations);
+  console.log('[DEBUG OrganizationSwitcher] currentOrg:', currentOrg);
+
+  // Safe find with null checks - handle both nested and flat structure
+  const currentOrgData = organizations.find((org) => {
+    // Handle nested structure: { organization: {...}, role: ... }
+    if (org?.organization?._id) {
+      return org.organization._id === currentOrg?._id;
+    }
+    // Handle flat structure: { _id: ..., role: ... } (backwards compatibility)
+    if ((org as any)?._id) {
+      return (org as any)._id === currentOrg?._id;
+    }
+    return false;
+  });
 
   return (
     <>
@@ -121,8 +134,11 @@ export const OrganizationSwitcher: React.FC = () => {
           </Typography>
           {currentOrgData && (
             <Typography variant="caption" color="text.secondary">
-              {currentOrgData.role === 'owner' ? 'Owner' :
-               currentOrgData.role === 'admin' ? 'Admin' : 'Member'}
+              {(() => {
+                const currentRole = currentOrgData.role || (currentOrgData as any)?.role;
+                return currentRole === 'owner' ? 'Owner' :
+                       currentRole === 'admin' ? 'Admin' : 'Member';
+              })()}
             </Typography>
           )}
         </Box>
@@ -150,13 +166,20 @@ export const OrganizationSwitcher: React.FC = () => {
         </Box>
 
         {organizations.map((orgData) => {
-          const org = orgData.organization;
-          const isSelected = org._id === currentOrg?._id;
+          // Handle both nested structure { organization: {...}, role: ... }
+          // and flat structure { _id: ..., registeredName: ..., role: ... }
+          const org = orgData.organization || orgData;
+          const orgId = org._id || (orgData as any)?._id;
+          const role = orgData.role || (orgData as any)?.role;
+          const isSelected = orgId === currentOrg?._id;
+
+          // Skip invalid entries
+          if (!orgId) return null;
 
           return (
             <MenuItem
-              key={org._id}
-              onClick={() => handleSwitch(org._id)}
+              key={orgId}
+              onClick={() => handleSwitch(orgId)}
               selected={isSelected}
               disabled={switching}
               sx={{
@@ -209,20 +232,20 @@ export const OrganizationSwitcher: React.FC = () => {
                 secondary={
                   <Stack direction="row" alignItems="center" spacing={1} sx={{ mt: 0.5 }}>
                     <Chip
-                      label={orgData.role}
+                      label={role}
                       size="small"
                       sx={{
                         height: 18,
                         fontSize: 10,
                         textTransform: 'capitalize',
-                        bgcolor: orgData.role === 'owner'
+                        bgcolor: role === 'owner'
                           ? 'error.lighter'
-                          : orgData.role === 'admin'
+                          : role === 'admin'
                             ? 'warning.lighter'
                             : 'default',
-                        color: orgData.role === 'owner'
+                        color: role === 'owner'
                           ? 'error.main'
-                          : orgData.role === 'admin'
+                          : role === 'admin'
                             ? 'warning.main'
                             : 'text.secondary',
                       }}

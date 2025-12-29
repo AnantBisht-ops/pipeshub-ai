@@ -66,7 +66,7 @@ export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ chil
   const { user, checkUserSession } = useAuthContext();
   const [organizations, setOrganizations] = useState<UserOrganization[]>([]);
   const [currentOrg, setCurrentOrg] = useState<Organization | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Fetch user's organizations
@@ -83,7 +83,29 @@ export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ chil
       setError(null);
 
       const response = await axiosInstance.get('/api/v1/organizations/my-organizations');
-      const { organizations: orgs, currentOrgId, defaultOrgId } = response.data;
+
+      // Debug logging - full response
+      console.log('[DEBUG] Full API response:', response.data);
+
+      const { organizations: orgs, currentOrgId, defaultOrgId } = response.data || {};
+
+      // Debug logging
+      console.log('[DEBUG] OrganizationContext received:', {
+        orgsCount: orgs?.length,
+        firstOrg: orgs?.[0],
+        currentOrgId,
+        defaultOrgId,
+        orgsArray: orgs
+      });
+
+      // Handle if orgs is undefined or not an array
+      if (!orgs || !Array.isArray(orgs)) {
+        console.warn('[DEBUG] Organizations is not an array:', orgs);
+        setOrganizations([]);
+        setCurrentOrg(null);
+        setIsLoading(false);
+        return;
+      }
 
       setOrganizations(orgs);
 
@@ -91,18 +113,23 @@ export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ chil
       // 1. currentOrgId from response (last accessed)
       // 2. defaultOrgId from response
       // 3. First organization in the list
-      const targetOrgId = currentOrgId || defaultOrgId || orgs[0]?.organization?._id;
+      const targetOrgId = currentOrgId || defaultOrgId || orgs?.[0]?.organization?._id;
 
-      if (targetOrgId) {
+      if (targetOrgId && orgs.length > 0) {
         const currentOrgData = orgs.find((org: UserOrganization) =>
-          org.organization._id === targetOrgId
+          org?.organization?._id === targetOrgId
         );
-        setCurrentOrg(currentOrgData?.organization || orgs[0]?.organization);
+        setCurrentOrg(currentOrgData?.organization || orgs[0]?.organization || null);
       } else {
         setCurrentOrg(null);
       }
-    } catch (err) {
-      console.error('Failed to fetch organizations:', err);
+    } catch (err: any) {
+      console.error('[DEBUG] Failed to fetch organizations:', err);
+      console.error('[DEBUG] Error details:', {
+        message: err?.message,
+        response: err?.response?.data,
+        status: err?.response?.status
+      });
       setError('Failed to load organizations');
       setOrganizations([]);
       setCurrentOrg(null);

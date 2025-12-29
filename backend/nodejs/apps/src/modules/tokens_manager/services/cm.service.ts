@@ -106,8 +106,17 @@ export class ConfigService {
   private async getEncryptedConfig<T>(
     configPath: string,
     fallbackEnvVars: Record<string, any>,
+    forceEnvVars: boolean = false,
   ): Promise<T> {
     try {
+      // If forceEnvVars is true, skip ETCD and use env vars directly
+      // This is useful for development or when ETCD has stale config
+      if (forceEnvVars) {
+        const fallbackConfig = fallbackEnvVars as T;
+        await this.saveConfigToEtcd(configPath, fallbackConfig);
+        return fallbackConfig;
+      }
+
       const encryptedConfig =
         await this.keyValueStoreService.get<string>(configPath);
 
@@ -121,6 +130,17 @@ export class ConfigService {
       return fallbackConfig;
     } catch (error) {
       return fallbackEnvVars as T;
+    }
+  }
+
+  /**
+   * Delete a config from ETCD to force refresh from env vars on next request
+   */
+  public async deleteConfig(configPath: string): Promise<void> {
+    try {
+      await this.keyValueStoreService.delete(configPath);
+    } catch (error) {
+      // Ignore errors - config may not exist
     }
   }
 
@@ -182,10 +202,13 @@ export class ConfigService {
 
   // MongoDB Configuration
   public async getMongoConfig(): Promise<MongoConfig> {
+    // Use FORCE_REFRESH_DB_CONFIG=true to force refresh from env vars
+    // This is useful when ETCD has stale config (e.g., switching from Docker to Atlas)
+    const forceRefresh = process.env.FORCE_REFRESH_DB_CONFIG === 'true';
     return this.getEncryptedConfig<MongoConfig>(configPaths.db.mongodb, {
       uri: process.env.MONGO_URI!,
       db: MONGO_DB_NAME,
-    });
+    }, forceRefresh);
   }
 
   // Qdrant Configuration
@@ -200,12 +223,14 @@ export class ConfigService {
 
   // Arango Configuration
   public async getArangoConfig(): Promise<ArangoConfig> {
+    // Use FORCE_REFRESH_DB_CONFIG=true to force refresh from env vars
+    const forceRefresh = process.env.FORCE_REFRESH_DB_CONFIG === 'true';
     return this.getEncryptedConfig<ArangoConfig>(configPaths.db.arangodb, {
       url: process.env.ARANGO_URL!,
       db: ARANGO_DB_NAME,
       username: process.env.ARANGO_USERNAME!,
       password: process.env.ARANGO_PASSWORD!,
-    });
+    }, forceRefresh);
   }
 
   // ETCD Configuration

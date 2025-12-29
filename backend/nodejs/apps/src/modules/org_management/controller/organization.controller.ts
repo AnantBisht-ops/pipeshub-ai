@@ -83,16 +83,24 @@ export class OrganizationController {
           const isCreator = org.contactEmail === user.email;
 
           return {
-            ...org.toObject(),
+            organization: org.toObject(),
             role: adminGroup || isCreator ? 'admin' : 'member',
             memberCount: org.metadata?.userCount || 1,
-            isCreator
+            isCreator,
+            joinedAt: new Date()
           };
         })
       );
 
       // Get current org from JWT or use first org
-      const currentOrgId = req.org?.orgId || orgsWithRoles[0]?._id;
+      const currentOrgId = req.org?.orgId || orgsWithRoles[0]?.organization?._id;
+
+      // Debug logging
+      console.log('[DEBUG] getUserOrganizations response:', JSON.stringify({
+        organizationsCount: orgsWithRoles.length,
+        firstOrg: orgsWithRoles[0],
+        currentOrgId
+      }, null, 2));
 
       res.status(200).json({
         organizations: orgsWithRoles,
