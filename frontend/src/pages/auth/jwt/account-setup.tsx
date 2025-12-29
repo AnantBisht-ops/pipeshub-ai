@@ -64,48 +64,58 @@ export default function Page() {
       </Helmet>
 
       {/* Account Type Selection Dialog */}
-      <Dialog 
-        open={open} 
-        onClose={handleClose} 
-        maxWidth="sm" 
+      <Dialog
+        open={open}
+        onClose={handleClose}
+        maxWidth="sm"
         fullWidth
+        BackdropProps={{
+          sx: {
+            bgcolor: '#1a1a1a', // Dark charcoal background
+          }
+        }}
         PaperProps={{
           sx: {
             borderRadius: 1,
-            bgcolor: isDarkMode ? 'background.paper' : '#fff',
-            boxShadow: isDarkMode ? '0 4px 20px rgba(0, 0, 0, 0.3)' : '0 4px 20px rgba(0, 0, 0, 0.1)',
+            bgcolor: '#2a2a2a', // Dark charcoal grey for OpenAnalyst
+            boxShadow: `0 0 30px ${alpha('#000000', 0.5)}, 0 12px 40px -4px ${alpha('#000000', 0.3)}`,
+            border: `1px solid ${alpha('#ffffff', 0.1)}`,
           }
         }}
       >
-        <DialogTitle 
-          sx={{ 
-            textAlign: 'center', 
+        <DialogTitle
+          sx={{
+            textAlign: 'center',
             pt: 4,
             pb: 2,
+            bgcolor: 'transparent',
           }}
         >
-          <Typography 
-            variant="h5" 
-            sx={{ 
-              fontWeight: 600, 
+          <Typography
+            variant="h5"
+            sx={{
+              fontWeight: 600,
               mb: 1,
-              color: 'text.primary',
+              color: '#ffffff', // Bright white for OpenAnalyst
+              textShadow: '0 0 20px rgba(255, 255, 255, 0.3)',
             }}
           >
             Choose Account Type
           </Typography>
-          <Typography 
-            variant="body2" 
-            color="text.secondary"
+          <Typography
+            variant="body2"
+            sx={{
+              color: alpha('#ffffff', 0.7),
+            }}
           >
             Select the type of account you want to create
           </Typography>
         </DialogTitle>
 
-        <DialogContent sx={{ px: 3, pb: 4 }}>
-          <Stack 
-            spacing={2} 
-            direction={{ xs: 'column', sm: 'row' }} 
+        <DialogContent sx={{ px: 3, pb: 4, bgcolor: 'transparent' }}>
+          <Stack
+            spacing={2}
+            direction={{ xs: 'column', sm: 'row' }}
             sx={{ mt: 1 }}
           >
             <Card
@@ -114,14 +124,13 @@ export default function Page() {
                 cursor: 'pointer',
                 transition: 'all 0.2s',
                 borderRadius: 1,
-                bgcolor: 'background.paper',
+                bgcolor: alpha('#1a1a1a', 0.6), // Dark background for OpenAnalyst
                 border: '1px solid',
-                borderColor: isDarkMode ? 'divider' : theme.palette.grey[200],
+                borderColor: alpha('#ffffff', 0.15),
                 '&:hover': {
                   borderColor: 'primary.main',
-                  boxShadow: isDarkMode ? 
-                    `0 4px 12px 0 ${alpha(theme.palette.primary.main, 0.15)}` : 
-                    `0 4px 12px 0 ${alpha(theme.palette.primary.main, 0.08)}`,
+                  boxShadow: `0 4px 16px 0 ${alpha(theme.palette.primary.main, 0.25)}`,
+                  bgcolor: alpha('#1a1a1a', 0.8),
                 },
               }}
               onClick={() => handleAccountTypeSelect('individual')}
@@ -155,18 +164,21 @@ export default function Page() {
                     color={theme.palette.primary.main} 
                   />
                 </Box>
-                <Typography 
-                  variant="subtitle1" 
-                  sx={{ 
-                    fontWeight: 600, 
+                <Typography
+                  variant="subtitle1"
+                  sx={{
+                    fontWeight: 600,
                     mb: 0.5,
+                    color: '#ffffff', // Bright white for OpenAnalyst
                   }}
                 >
                   Individual
                 </Typography>
-                <Typography 
-                  variant="body2" 
-                  color="text.secondary"
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: alpha('#ffffff', 0.6),
+                  }}
                 >
                   For personal use or freelancers
                 </Typography>
@@ -179,14 +191,13 @@ export default function Page() {
                 cursor: 'pointer',
                 transition: 'all 0.2s',
                 borderRadius: 1,
-                bgcolor: 'background.paper',
+                bgcolor: alpha('#1a1a1a', 0.6), // Dark background for OpenAnalyst
                 border: '1px solid',
-                borderColor: isDarkMode ? 'divider' : theme.palette.grey[200],
+                borderColor: alpha('#ffffff', 0.15),
                 '&:hover': {
                   borderColor: 'primary.main',
-                  boxShadow: isDarkMode ? 
-                    `0 4px 12px 0 ${alpha(theme.palette.primary.main, 0.15)}` : 
-                    `0 4px 12px 0 ${alpha(theme.palette.primary.main, 0.08)}`,
+                  boxShadow: `0 4px 16px 0 ${alpha(theme.palette.primary.main, 0.25)}`,
+                  bgcolor: alpha('#1a1a1a', 0.8),
                 },
               }}
               onClick={() => handleAccountTypeSelect('business')}
@@ -220,18 +231,21 @@ export default function Page() {
                     color={theme.palette.primary.main} 
                   />
                 </Box>
-                <Typography 
-                  variant="subtitle1" 
-                  sx={{ 
-                    fontWeight: 600, 
+                <Typography
+                  variant="subtitle1"
+                  sx={{
+                    fontWeight: 600,
                     mb: 0.5,
+                    color: '#ffffff', // Bright white for OpenAnalyst
                   }}
                 >
                   Organization
                 </Typography>
-                <Typography 
-                  variant="body2" 
-                  color="text.secondary"
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: alpha('#ffffff', 0.6),
+                  }}
                 >
                   For companies and teams
                 </Typography>

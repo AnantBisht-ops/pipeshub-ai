@@ -47,19 +47,20 @@ export function Section({
           )}`,
         }),
         maxWidth: 780,
-        display: 'none',
+        display: 'none', // Hidden on all screen sizes for OpenAnalyst clean design
         position: 'relative',
         backgroundColor: theme.palette.background.default, // Background color for the entire component
         width: '100%', // Take up full width
         height: '100%', // Take up full height
         minHeight: '100vh', // Ensure it takes at least the full viewport height
         overflow: 'hidden', // Prevent content from spilling outside the box
-        [theme.breakpoints.up(layoutQuery)]: {
-          display: 'flex',
-          alignItems: 'flex-start', // Align to the left instead of center
-          flexDirection: 'column',
-          justifyContent: 'flex-start', // Start from the top
-        },
+        // Removed breakpoint display logic to keep sidebar hidden
+        // [theme.breakpoints.up(layoutQuery)]: {
+        //   display: 'flex',
+        //   alignItems: 'flex-start', // Align to the left instead of center
+        //   flexDirection: 'column',
+        //   justifyContent: 'flex-start', // Start from the top
+        // },
         '&:before': {
           content: '""',
           position: 'absolute',

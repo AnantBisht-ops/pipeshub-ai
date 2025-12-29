@@ -46,16 +46,35 @@ import { OrgExists, AccountSetUp } from 'src/auth/context/jwt';
 // Import the AccountType type
 export type AccountType = 'individual' | 'business';
 
-// Styled components using the theme
+// Styled components using the theme - Enhanced for OpenAnalyst dark theme
 const StyledTextField = styled(TextField)(({ theme }) => ({
   '& .MuiOutlinedInput-root': {
     borderRadius: theme.shape.borderRadius,
+    color: '#ffffff', // Bright white text
+    '& fieldset': {
+      borderColor: alpha('#ffffff', 0.2),
+    },
     '&:hover fieldset': {
-      borderColor: theme.palette.primary.light,
+      borderColor: alpha('#ffffff', 0.3),
     },
     '&.Mui-focused fieldset': {
-      borderColor: theme.palette.primary.light,
+      borderColor: theme.palette.primary.main,
     },
+  },
+  '& .MuiInputLabel-root': {
+    color: alpha('#ffffff', 0.7),
+  },
+  '& .MuiInputBase-input': {
+    color: '#ffffff',
+  },
+  '& .MuiInputAdornment-root': {
+    color: alpha('#ffffff', 0.7), // White icons in inputs
+  },
+  '& .MuiFormHelperText-root': {
+    color: alpha('#ffffff', 0.6),
+  },
+  '& .MuiIconButton-root': {
+    color: alpha('#ffffff', 0.7), // White icon buttons (e.g., show/hide password)
   },
 }));
 
@@ -127,10 +146,10 @@ const StyledContainer = styled(Container)(({ theme }) => ({
 
 const StyledPaper = styled(Paper)(({ theme }) => ({
   padding: theme.spacing(3),
-  backgroundColor: theme.palette.background.paper,
+  backgroundColor: alpha('#2a2a2a', 0.95), // Dark charcoal background for OpenAnalyst
   borderRadius: theme.shape.borderRadius * 1.5,
-  boxShadow: 'none',
-  border: `1px solid ${theme.palette.divider}`,
+  boxShadow: `0 0 30px ${alpha('#000000', 0.5)}, 0 12px 40px -4px ${alpha('#000000', 0.3)}`,
+  border: `1px solid ${alpha('#ffffff', 0.1)}`, // Subtle white border
   [theme.breakpoints.down('sm')]: {
     padding: theme.spacing(3),
   },
@@ -139,7 +158,8 @@ const StyledPaper = styled(Paper)(({ theme }) => ({
 const SectionTitle = styled(Typography)(({ theme }) => ({
   fontWeight: 600,
   marginBottom: theme.spacing(0),
-  color: theme.palette.text.primary,
+  color: '#ffffff', // Bright white for OpenAnalyst
+  textShadow: '0 0 20px rgba(255, 255, 255, 0.3)', // Subtle glow effect
   display: 'flex',
   alignItems: 'center',
   gap: theme.spacing(1),
@@ -320,7 +340,7 @@ export const AccountSetupForm: React.FC<AccountSetupFormProps> = ({ accountType 
         minHeight: '100vh',
         display: 'flex',
         flexDirection: 'column',
-        backgroundColor: theme.palette.background.default,
+        backgroundColor: '#1a1a1a', // Dark charcoal background for OpenAnalyst
         zIndex: 2,
       }}
     >
@@ -338,17 +358,21 @@ export const AccountSetupForm: React.FC<AccountSetupFormProps> = ({ accountType 
             <Typography
               variant="h3"
               sx={{
-                color: theme.palette.primary.main,
+                color: '#ffffff', // Bright white for OpenAnalyst
                 fontWeight: 700,
                 mb: 1,
+                textShadow: '0 0 20px rgba(255, 255, 255, 0.3)', // Glow effect
               }}
             >
               {accountType === 'business' ? 'Set Up Your Organization' : 'Create Your Account'}
             </Typography>
-            <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+            <Typography
+              variant="body2"
+              sx={{ color: (theme1) => alpha('#ffffff', 0.7) }}
+            >
               {accountType === 'business'
-                ? 'Create your organization profile to get started with PIPESHUB'
-                : 'Create your individual account to get started with PIPESHUB'}
+                ? 'Create your organization profile to get started with OpenAnalyst'
+                : 'Create your individual account to get started with OpenAnalyst'}
             </Typography>
           </Box>
 
@@ -361,7 +385,7 @@ export const AccountSetupForm: React.FC<AccountSetupFormProps> = ({ accountType 
                     <>
                       <Grid item xs={12}>
                         <SectionTitle>
-                          <Icon icon={buildingIcon} />
+                          <Icon icon={buildingIcon} style={{ color: '#ffffff' }} />
                           Organization Details
                         </SectionTitle>
                       </Grid>
@@ -380,7 +404,7 @@ export const AccountSetupForm: React.FC<AccountSetupFormProps> = ({ accountType 
                               InputProps={{
                                 startAdornment: (
                                   <InputAdornment position="start">
-                                    <Icon icon={domainIcon} />
+                                    <Icon icon={domainIcon} style={{ color: alpha('#ffffff', 0.7) }} />
                                   </InputAdornment>
                                 ),
                               }}
@@ -417,7 +441,7 @@ export const AccountSetupForm: React.FC<AccountSetupFormProps> = ({ accountType 
                   {/* Admin/User Details Section */}
                   <Grid item xs={12}>
                     <SectionTitle>
-                      <Icon icon={accountCircleIcon} />
+                      <Icon icon={accountCircleIcon} style={{ color: '#ffffff' }} />
                       {accountType === 'business' ? 'Admin Details' : 'User Details'}
                     </SectionTitle>
                   </Grid>
@@ -476,7 +500,7 @@ export const AccountSetupForm: React.FC<AccountSetupFormProps> = ({ accountType 
                     <>
                       <Grid item xs={12}>
                         <SectionTitle>
-                          <Icon icon={mapMarkerIcon} />
+                          <Icon icon={mapMarkerIcon} style={{ color: '#ffffff' }} />
                           Address Details
                         </SectionTitle>
                       </Grid>

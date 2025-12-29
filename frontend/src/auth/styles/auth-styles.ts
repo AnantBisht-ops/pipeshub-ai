@@ -17,13 +17,33 @@ export const CARD_STYLES = {
   maxWidth: 480,
   mx: 'auto',
   mt: 4,
-  backdropFilter: 'blur(6px)',
-  bgcolor: (theme: Theme) => alpha(theme.palette.background.paper, 0.9),
-  boxShadow: (theme: Theme) => `0 0 2px ${alpha(theme.palette.grey[500], 0.2)},
-                                 0 12px 24px -4px ${alpha(theme.palette.grey[500], 0.12)}`,
-  borderRadius: 2,
+  backdropFilter: 'blur(10px)',
+  bgcolor: (theme: Theme) => alpha('#2a2a2a', 0.95), // Slightly lighter than background for contrast
+  boxShadow: (theme: Theme) => `0 0 30px ${alpha('#000000', 0.5)},
+                                 0 12px 40px -4px ${alpha('#000000', 0.3)}`,
+  borderRadius: 3,
   border: '1px solid',
-  borderColor: 'divider',
+  borderColor: (theme: Theme) => alpha('#ffffff', 0.1), // Subtle white border
+  // Enhanced text styling with glow effect for OpenAnalyst
+  '& .MuiTypography-root': {
+    color: '#ffffff',
+    textShadow: '0 0 20px rgba(255, 255, 255, 0.3)',
+  },
+  '& .MuiInputBase-root': {
+    color: '#ffffff',
+    '& fieldset': {
+      borderColor: (theme: Theme) => alpha('#ffffff', 0.2),
+    },
+    '&:hover fieldset': {
+      borderColor: (theme: Theme) => alpha('#ffffff', 0.3),
+    },
+    '&.Mui-focused fieldset': {
+      borderColor: 'primary.main',
+    },
+  },
+  '& .MuiInputLabel-root': {
+    color: (theme: Theme) => alpha('#ffffff', 0.7),
+  },
 };
 
 export const TAB_STYLES = {
@@ -33,19 +53,22 @@ export const TAB_STYLES = {
     textTransform: 'none',
     flexDirection: 'row',
     fontWeight: 600,
-    color: 'text.secondary',
+    color: (theme: Theme) => alpha('#ffffff', 0.6), // Bright white with transparency for unselected
     borderRadius: '8px 8px 0 0',
     transition: 'all 0.2s ease-in-out',
+    textShadow: '0 0 10px rgba(255, 255, 255, 0.2)', // Subtle glow for tabs
     '&.Mui-selected': {
-      color: 'primary.main',
-      bgcolor: (theme: Theme) => alpha(theme.palette.primary.main, 0.08),
+      color: '#ffffff', // Bright white for selected tab
+      bgcolor: (theme: Theme) => alpha(theme.palette.primary.main, 0.15),
+      textShadow: '0 0 20px rgba(255, 255, 255, 0.4)', // Enhanced glow for selected
     },
     '& .MuiTab-iconWrapper': {
       mr: 1,
       transition: 'transform 0.2s ease-in-out',
     },
     '&:hover': {
-      bgcolor: (theme: Theme) => alpha(theme.palette.primary.main, 0.04),
+      bgcolor: (theme: Theme) => alpha(theme.palette.primary.main, 0.08),
+      color: (theme: Theme) => alpha('#ffffff', 0.9),
       '& .MuiTab-iconWrapper': {
         transform: 'scale(1.1)',
       },
@@ -56,6 +79,7 @@ export const TAB_STYLES = {
     borderRadius: '3px 3px 0 0',
     bgcolor: 'primary.main',
     transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+    boxShadow: (theme: Theme) => `0 0 10px ${theme.palette.primary.main}`, // Glow effect for indicator
   },
 } as StyleConfig;
 

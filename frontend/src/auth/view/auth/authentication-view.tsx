@@ -530,19 +530,35 @@ export const AuthenticationView = () => {
             maxWidth: 480,
             mx: 'auto',
             mt: 4,
-            backdropFilter: 'blur(6px)',
-            bgcolor: (theme1) => alpha(theme1.palette.background.paper, 0.9),
-            boxShadow: (theme1) => `0 0 2px ${alpha(theme1.palette.grey[500], 0.2)}, 
-                                 0 12px 24px -4px ${alpha(theme1.palette.grey[500], 0.12)}`,
+            backdropFilter: 'blur(10px)',
+            bgcolor: (theme1) => alpha('#2a2a2a', 0.95), // Dark charcoal for OpenAnalyst
+            boxShadow: (theme1) => `0 0 30px ${alpha('#000000', 0.5)},
+                                     0 12px 40px -4px ${alpha('#000000', 0.3)}`,
+            borderRadius: 3,
+            border: '1px solid',
+            borderColor: (theme1) => alpha('#ffffff', 0.1), // Subtle white border
           }}
         >
           <CardContent sx={{ pt: 5, pb: 5 }}>
             <Box sx={{ mb: 5, textAlign: 'center' }}>
-              <Typography variant="h4" sx={{ mb: 1, fontWeight: 700 }}>
+              <Typography
+                variant="h4"
+                sx={{
+                  mb: 1,
+                  fontWeight: 700,
+                  color: '#ffffff', // Bright white for OpenAnalyst
+                  textShadow: '0 0 20px rgba(255, 255, 255, 0.3)', // Glow effect
+                }}
+              >
                 Welcome
               </Typography>
 
-              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+              <Typography
+                variant="body2"
+                sx={{
+                  color: (theme1) => alpha('#ffffff', 0.7), // Bright white with transparency
+                }}
+              >
                 Sign in to continue to your account
               </Typography>
             </Box>
@@ -575,7 +591,11 @@ export const AuthenticationView = () => {
                 InputProps={{
                   startAdornment: (
                     <InputAdornment position="start">
-                      <Iconify icon={emailIcon} width={24} sx={{ color: 'text.secondary' }} />
+                      <Iconify
+                        icon={emailIcon}
+                        width={24}
+                        sx={{ color: (theme1) => alpha('#ffffff', 0.7) }}
+                      />
                     </InputAdornment>
                   ),
                 }}
@@ -583,7 +603,22 @@ export const AuthenticationView = () => {
                   mb: 3,
                   '& .MuiOutlinedInput-root': {
                     borderRadius: 1.5,
-                    bgcolor: 'background.paper',
+                    color: '#ffffff', // Bright white text for OpenAnalyst
+                    '& fieldset': {
+                      borderColor: (theme1) => alpha('#ffffff', 0.2),
+                    },
+                    '&:hover fieldset': {
+                      borderColor: (theme1) => alpha('#ffffff', 0.3),
+                    },
+                    '&.Mui-focused fieldset': {
+                      borderColor: 'primary.main',
+                    },
+                  },
+                  '& .MuiInputLabel-root': {
+                    color: (theme1) => alpha('#ffffff', 0.7),
+                  },
+                  '& .MuiFormHelperText-root': {
+                    color: (theme1) => alpha('#ffffff', 0.6),
                   },
                 }}
               />
@@ -608,11 +643,19 @@ export const AuthenticationView = () => {
               </LoadingButton>
 
               <Stack direction="row" spacing={0.5} justifyContent="center" sx={{ mt: 3 }}>
-                <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                  Don’t have an account?
+                <Typography
+                  variant="body2"
+                  sx={{ color: (theme1) => alpha('#ffffff', 0.7) }}
+                >
+                  Don't have an account?
                 </Typography>
 
-                <Link component={RouterLink} href={paths.auth.jwt.signUp} variant="subtitle2">
+                <Link
+                  component={RouterLink}
+                  href={paths.auth.jwt.signUp}
+                  variant="subtitle2"
+                  sx={{ color: 'primary.main' }}
+                >
                   Sign up
                 </Link>
               </Stack>
