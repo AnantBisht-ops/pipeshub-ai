@@ -84,23 +84,10 @@ export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ chil
 
       const response = await axiosInstance.get('/api/v1/organizations/my-organizations');
 
-      // Debug logging - full response
-      console.log('[DEBUG] Full API response:', response.data);
-
       const { organizations: orgs, currentOrgId, defaultOrgId } = response.data || {};
-
-      // Debug logging
-      console.log('[DEBUG] OrganizationContext received:', {
-        orgsCount: orgs?.length,
-        firstOrg: orgs?.[0],
-        currentOrgId,
-        defaultOrgId,
-        orgsArray: orgs
-      });
 
       // Handle if orgs is undefined or not an array
       if (!orgs || !Array.isArray(orgs)) {
-        console.warn('[DEBUG] Organizations is not an array:', orgs);
         setOrganizations([]);
         setCurrentOrg(null);
         setIsLoading(false);
@@ -124,12 +111,7 @@ export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ chil
         setCurrentOrg(null);
       }
     } catch (err: any) {
-      console.error('[DEBUG] Failed to fetch organizations:', err);
-      console.error('[DEBUG] Error details:', {
-        message: err?.message,
-        response: err?.response?.data,
-        status: err?.response?.status
-      });
+      console.error('Failed to fetch organizations:', err);
       setError('Failed to load organizations');
       setOrganizations([]);
       setCurrentOrg(null);
@@ -154,10 +136,15 @@ export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ chil
         localStorage.setItem('refreshToken', response.data.refreshToken);
       }
 
-      // Update current organization
-      const targetOrg = organizations.find(org => org.organization._id === orgId);
-      if (targetOrg) {
+      // Update current organization - handle both nested and flat structures
+      const targetOrg = organizations.find(org =>
+        org?.organization?._id === orgId || (org as any)?._id === orgId
+      );
+      if (targetOrg?.organization) {
         setCurrentOrg(targetOrg.organization);
+      } else if ((targetOrg as any)?._id) {
+        // Handle flat structure
+        setCurrentOrg(targetOrg as any);
       }
 
       // Refresh user session to update JWT context
@@ -224,7 +211,7 @@ export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ chil
       setCurrentOrg(updatedOrg);
       setOrganizations(prev =>
         prev.map(org =>
-          org.organization._id === updatedOrg._id
+          org?.organization?._id === updatedOrg._id || (org as any)?._id === updatedOrg._id
             ? { ...org, organization: updatedOrg }
             : org
         )

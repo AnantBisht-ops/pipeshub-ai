@@ -75,10 +75,6 @@ export const OrganizationSwitcher: React.FC = () => {
     );
   }
 
-  // Debug: Log the organizations structure
-  console.log('[DEBUG OrganizationSwitcher] organizations:', organizations);
-  console.log('[DEBUG OrganizationSwitcher] currentOrg:', currentOrg);
-
   // Safe find with null checks - handle both nested and flat structure
   const currentOrgData = organizations.find((org) => {
     // Handle nested structure: { organization: {...}, role: ... }
