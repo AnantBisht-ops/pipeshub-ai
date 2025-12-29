@@ -53,14 +53,20 @@ export const ProjectProvider: React.FC<{ children: React.ReactNode }> = ({ child
     try {
       setIsLoading(true);
       const response = await axios.get('/api/v1/projects');
-      setProjects(response.data);
+
+      // Handle both wrapped { projects: [...] } and direct array responses
+      const projectsData = response.data?.projects || response.data || [];
+      const projectsArray = Array.isArray(projectsData) ? projectsData : [];
+
+      setProjects(projectsArray);
 
       // Set first project as current if none selected
-      if (!currentProject && response.data.length > 0) {
-        setCurrentProject(response.data[0]);
+      if (!currentProject && projectsArray.length > 0) {
+        setCurrentProject(projectsArray[0]);
       }
     } catch (error) {
       console.error('Failed to fetch projects:', error);
+      setProjects([]);
     } finally {
       setIsLoading(false);
     }
