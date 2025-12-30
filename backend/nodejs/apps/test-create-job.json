@@ -1,0 +1,27 @@
+{
+  "name": "Daily Report for OpenAnalyst",
+  "prompt": "Generate a comprehensive daily summary report with key metrics and insights",
+  "targetApi": "https://api.openanalyst.com:3456/api/agent/run",
+  "scheduleType": "once",
+  "timezone": "Asia/Kolkata",
+  "oneTime": {
+    "date": "2025-01-26",
+    "time": "15:00"
+  },
+  "skillId": "daily-report-generator",
+  "metadata": {
+    "conversationId": "conv_test_123",
+    "sessionId": "sess_test_456",
+    "chatboxId": "chatbox_test_789",
+    "userEmail": "test@openanalyst.com",
+    "userName": "Test User",
+    "projectName": "OpenAnalyst",
+    "model": "claude-3-5-sonnet-20241022",
+    "allowedTools": ["Read", "Write", "Bash", "Glob"]
+  },
+  "headers": {
+    "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJ1c2VyLTEyMyIsImVtYWlsIjoidXNlci0xMjNAZXhhbXBsZS5jb20iLCJpYXQiOjE3NjY1ODc2NDgsImV4cCI6MTc2NzE5MjQ0OH0.Uv2meVugVqnatbKMLj46itzp74rvfBi78FgRGOYOIio",
+    "Content-Type": "application/json",
+    "Accept": "text/event-stream"
+  }
+}

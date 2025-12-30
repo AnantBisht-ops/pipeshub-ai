@@ -1,0 +1,149 @@
+# Environment files - NEVER commit these
+.env
+.env.local
+.env.production
+.env.development
+.env.test
+.env.*
+
+# Except the example file
+!.env.example
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+/var/log/
+
+# PM2
+.pm2/
+pm2.json
+pm2.yaml
+ecosystem.config.js.local
+
+# Node modules
+node_modules/
+dist/
+build/
+.npm
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Storage (for response data)
+storage/
+/storage/responses/
+/storage/cron-responses/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# SSL certificates
+*.pem
+*.key
+*.crt
+*.csr
+*.der
+*.p12
+*.pfx
+
+# Backup files
+*.backup
+*.bak
+backup/
+
+# Database dumps
+*.sql
+*.dump
+*.mongodb
+
+# Redis dumps
+dump.rdb
+appendonly.aof
+
+# API Keys and secrets file (if any)
+secrets.json
+credentials.json
+api-keys.json
+
+# Production specific
+production-config.json
+production-secrets.json
+
+# OS Files
+Thumbs.db
+Desktop.ini
+
+# Documentation build files
+docs/_build/
+docs/.build/
+
+# Python (if using any scripts)
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+
+# Monitoring and metrics
+metrics/
+prometheus-data/
+
+# Health check files
+health-check.lock
+.health
+
+# Session data
+sessions/
+
+# Cache
+.cache/
+cache/
+
+# Archive files (usually backups)
+*.tar
+*.tar.gz
+*.zip
+*.rar
+*.7z
+
+# Kubernetes secrets
+k8s-secrets/
+*.secret.yaml
+*.secret.yml
+
+# Docker files (if sensitive)
+docker-compose.override.yml
+.dockerignore.local
+
+# Terraform (if using)
+*.tfstate
+*.tfstate.*
+.terraform/
+
+# Sensitive test files
+test-data-production/
+test-credentials.json
+
+# Custom ignore patterns for this project
+cron-scheduler-*.log
+cronjob-executions-*.json
+redis-backup-*/
+mongodb-backup-*/

@@ -169,39 +169,120 @@ export class ConfigService {
 
   // Redis Configuration
   public async getRedisConfig(): Promise<RedisConfig> {
+    const envHost = process.env.REDIS_HOST!;
+    const envPort = parseInt(process.env.REDIS_PORT!, 10);
+    const envPassword = process.env.REDIS_PASSWORD;
+    const envDb = parseInt(process.env.REDIS_DB || '0', 10);
+
+    // Smart ETCD sync: Update cache if .env value changed
+    try {
+      const cached = await this.keyValueStoreService.get<string>(configPaths.keyValueStore.redis);
+      if (cached) {
+        const cachedConfig = JSON.parse(this.encryptionService.decrypt(cached)) as RedisConfig;
+
+        // If cached host doesn't match .env, update ETCD
+        if (cachedConfig.host !== envHost || cachedConfig.port !== envPort) {
+          console.log('[ConfigService] Redis config changed in .env, updating ETCD...');
+          const newConfig = {
+            host: envHost,
+            port: envPort,
+            password: envPassword,
+            db: envDb,
+          };
+          await this.saveConfigToEtcd(configPaths.keyValueStore.redis, newConfig);
+          console.log('[ConfigService] ETCD updated with new Redis config');
+          return newConfig;
+        }
+      }
+    } catch (error) {
+      console.log('[ConfigService] ETCD sync check failed, will use fallback');
+    }
+
+    // Use normal ETCD flow with .env as fallback
     return this.getEncryptedConfig<RedisConfig>(
       configPaths.keyValueStore.redis,
       {
-        host: process.env.REDIS_HOST!,
-        port: parseInt(process.env.REDIS_PORT!, 10),
-        password: process.env.REDIS_PASSWORD,
-        db: parseInt(process.env.REDIS_DB || '0', 10),
+        host: envHost,
+        port: envPort,
+        password: envPassword,
+        db: envDb,
       },
     );
   }
 
   // MongoDB Configuration
   public async getMongoConfig(): Promise<MongoConfig> {
+    const envUri = process.env.MONGO_URI!;
+
+    // Smart ETCD sync: Update cache if .env value changed
+    try {
+      const cached = await this.keyValueStoreService.get<string>(configPaths.db.mongodb);
+      if (cached) {
+        const cachedConfig = JSON.parse(this.encryptionService.decrypt(cached)) as MongoConfig;
+
+        // If cached URI doesn't match .env, update ETCD
+        if (cachedConfig.uri !== envUri) {
+          console.log('[ConfigService] MongoDB URI changed in .env, updating ETCD...');
+          const newConfig = { uri: envUri, db: MONGO_DB_NAME };
+          await this.saveConfigToEtcd(configPaths.db.mongodb, newConfig);
+          console.log('[ConfigService] ETCD updated with new MongoDB URI');
+          return newConfig;
+        }
+      }
+    } catch (error) {
+      console.log('[ConfigService] ETCD sync check failed, will use fallback');
+    }
+
+    // Use normal ETCD flow with .env as fallback
     return this.getEncryptedConfig<MongoConfig>(configPaths.db.mongodb, {
-      uri: process.env.MONGO_URI!,
+      uri: envUri,
       db: MONGO_DB_NAME,
     });
   }
 
   // Qdrant Configuration
   public async getQdrantConfig(): Promise<QdrantConfig> {
-    return this.getEncryptedConfig<QdrantConfig>(configPaths.db.qdrant, {
+    // For local development, always use environment variables instead of ETCD
+    // This avoids hostname issues when switching between Docker and local development
+    return {
       apiKey: process.env.QDRANT_API_KEY!,
       host: process.env.QDRANT_HOST || 'localhost',
       port: parseInt(process.env.QDRANT_PORT || '6333', 10),
       grpcPort: parseInt(process.env.QDRANT_GRPC_PORT || '6334', 10),
-    });
+    };
   }
 
   // Arango Configuration
   public async getArangoConfig(): Promise<ArangoConfig> {
+    const envUrl = process.env.ARANGO_URL!;
+
+    // Smart ETCD sync: Update cache if .env value changed
+    try {
+      const cached = await this.keyValueStoreService.get<string>(configPaths.db.arangodb);
+      if (cached) {
+        const cachedConfig = JSON.parse(this.encryptionService.decrypt(cached)) as ArangoConfig;
+
+        // If cached URL doesn't match .env, update ETCD
+        if (cachedConfig.url !== envUrl) {
+          console.log('[ConfigService] ArangoDB URL changed in .env, updating ETCD...');
+          const newConfig = {
+            url: envUrl,
+            db: ARANGO_DB_NAME,
+            username: process.env.ARANGO_USERNAME!,
+            password: process.env.ARANGO_PASSWORD!,
+          };
+          await this.saveConfigToEtcd(configPaths.db.arangodb, newConfig);
+          console.log('[ConfigService] ETCD updated with new ArangoDB URL');
+          return newConfig;
+        }
+      }
+    } catch (error) {
+      console.log('[ConfigService] ETCD sync check failed, will use fallback');
+    }
+
+    // Use normal ETCD flow with .env as fallback
     return this.getEncryptedConfig<ArangoConfig>(configPaths.db.arangodb, {
-      url: process.env.ARANGO_URL!,
+      url: envUrl,
       db: ARANGO_DB_NAME,
       username: process.env.ARANGO_USERNAME!,
       password: process.env.ARANGO_PASSWORD!,

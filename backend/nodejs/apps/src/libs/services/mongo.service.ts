@@ -33,8 +33,14 @@ export class MongoService {
 
     try {
       const { uri, db, options } = this.config;
+
+      // Debug logging
+      logger.info(`[MongoDB] Connecting to database...`);
+      logger.info(`[MongoDB] URI: ${uri.substring(0, 60)}...`);
+      logger.info(`[MongoDB] Database: ${db}`);
+
       const defaultOptions = {
-        serverSelectionTimeoutMS: 5000,
+        serverSelectionTimeoutMS: 30000, // Increased to 30s for MongoDB Atlas
         socketTimeoutMS: 45000,
         family: 4,
         maxPoolSize: 10,

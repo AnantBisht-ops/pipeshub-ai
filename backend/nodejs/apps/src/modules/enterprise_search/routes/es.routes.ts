@@ -1,6 +1,7 @@
 import { NextFunction, Router, Response } from 'express';
 import { Container } from 'inversify';
 import { AuthMiddleware } from '../../../libs/middlewares/auth.middleware';
+import { optionalProjectContext } from '../../../libs/middlewares/project-context.middleware';
 import {
   addMessage,
   archiveConversation,
@@ -49,6 +50,7 @@ import {
   updateAgentPermissions,
   getAgentPermissions,
   regenerateAgentAnswers,
+  executeMCPTool,
 } from '../controller/es_controller';
 import { ValidationMiddleware } from '../../../libs/middlewares/validation.middleware';
 import {
@@ -85,6 +87,7 @@ export function createConversationalRouter(container: Container): Router {
   router.post(
     '/create',
     authMiddleware.authenticate,
+    optionalProjectContext,
     metricsMiddleware(container),
     ValidationMiddleware.validate(enterpriseSearchCreateSchema),
     createConversation(appConfig),
@@ -187,6 +190,7 @@ export function createConversationalRouter(container: Container): Router {
   router.get(
     '/',
     authMiddleware.authenticate,
+    optionalProjectContext,
     metricsMiddleware(container),
     getAllConversations,
   );
@@ -200,6 +204,7 @@ export function createConversationalRouter(container: Container): Router {
   router.get(
     '/:conversationId',
     authMiddleware.authenticate,
+    optionalProjectContext,
     metricsMiddleware(container),
     ValidationMiddleware.validate(conversationIdParamsSchema),
     getConversationById,
@@ -214,6 +219,7 @@ export function createConversationalRouter(container: Container): Router {
   router.delete(
     '/:conversationId',
     authMiddleware.authenticate,
+    optionalProjectContext,
     metricsMiddleware(container),
     ValidationMiddleware.validate(conversationIdParamsSchema),
     deleteConversationById,
@@ -451,6 +457,7 @@ export function createAgentConversationalRouter(container: Container): Router {
   router.post(
     '/:agentKey/conversations',
     authMiddleware.authenticate,
+    optionalProjectContext,
     metricsMiddleware(container),
     createAgentConversation(appConfig),
   );
@@ -489,6 +496,7 @@ export function createAgentConversationalRouter(container: Container): Router {
   router.get(
     '/:agentKey/conversations',
     authMiddleware.authenticate,
+    optionalProjectContext,
     metricsMiddleware(container),
     getAllAgentConversations,
   );
@@ -582,6 +590,18 @@ export function createAgentConversationalRouter(container: Container): Router {
     authMiddleware.authenticate,
     metricsMiddleware(container),
     getAvailableTools(appConfig),
+  );
+
+  /**
+   * @route POST /api/v1/agent/mcp/execute
+   * @desc Execute MCP tool for Python backend
+   * @access Internal - From Python Backend
+   */
+  router.post(
+    '/mcp/execute',
+    authMiddleware.authenticate,
+    metricsMiddleware(container),
+    executeMCPTool(appConfig),
   );
 
   router.get(

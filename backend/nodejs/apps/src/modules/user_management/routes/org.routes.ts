@@ -68,10 +68,10 @@ export function createOrgRouter(container: Container) {
 
   router.get(
     '/exists',
-    async (_req: Request, res: Response, next: NextFunction) => {
+    async (req: Request, res: Response, next: NextFunction) => {
       try {
         const orgController = container.get<OrgController>('OrgController');
-        await orgController.checkOrgExistence(res);
+        await orgController.checkOrgExistence(req, res);
       } catch (error) {
         next(error);
       }

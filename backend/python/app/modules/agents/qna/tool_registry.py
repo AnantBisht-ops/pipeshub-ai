@@ -12,6 +12,7 @@ from pydantic import ConfigDict, Field
 from app.agents.tools.factories.registry import ClientFactoryRegistry
 from app.agents.tools.registry import _global_tools_registry
 from app.modules.agents.qna.chat_state import ChatState
+from app.modules.agents.qna.mcp_tool_wrapper import register_mcp_tools
 
 # Constants
 TOOL_RESULT_TUPLE_LENGTH = 2
@@ -352,6 +353,7 @@ def get_agent_tools(state: ChatState) -> List[RegistryToolWrapper]:
     - Caches tools after first load for performance
     - Only re-computes when blocked tools change
     - Filters out tools that have recently failed to prevent infinite retry loops
+    - Dynamically registers MCP tools if present
 
     Args:
         state: Chat state object
@@ -360,6 +362,20 @@ def get_agent_tools(state: ChatState) -> List[RegistryToolWrapper]:
         List of tool wrappers
     """
     logger = state.get("logger")
+
+    # Register MCP tools if present
+    mcp_tools = state.get("mcp_tools")
+    if mcp_tools and logger:
+        user_id = state.get("user_id", "")
+        try:
+            registered_count = register_mcp_tools(mcp_tools, user_id, logger)
+            if registered_count > 0:
+                logger.info(f"Registered {registered_count} MCP tools for user {user_id}")
+                # Clear cache to force reload with new MCP tools
+                state["_cached_agent_tools"] = None
+                state["_cached_blocked_tools"] = {}
+        except Exception as e:
+            logger.error(f"Failed to register MCP tools: {e}")
 
     # **PERFORMANCE OPTIMIZATION**: Check if tools are already cached
     cached_tools = state.get("_cached_agent_tools")

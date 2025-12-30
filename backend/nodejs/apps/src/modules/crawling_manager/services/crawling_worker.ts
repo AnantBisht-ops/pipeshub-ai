@@ -3,6 +3,7 @@ import { Logger } from '../../../libs/services/logger.service';
 import { inject, injectable } from 'inversify';
 import { RedisConfig } from '../../../libs/types/redis.types';
 import { CrawlingJobData } from '../schema/interface';
+// @ts-ignore - Used in dependency injection
 import { ConnectorsCrawlingService } from './connectors/connectors';
 import { ICrawlingTaskService } from './task/crawling_task_service';
 
@@ -13,7 +14,7 @@ export class CrawlingWorkerService {
 
   constructor(
     @inject('RedisConfig') redisConfig: RedisConfig,
-    @inject(ConnectorsCrawlingService) private taskService: ICrawlingTaskService,
+    @inject('ConnectorsCrawlingService') private taskService: ICrawlingTaskService,
   ) { 
     this.logger = Logger.getInstance({ service: 'CrawlingWorkerService' });
 

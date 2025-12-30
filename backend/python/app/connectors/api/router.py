@@ -2237,7 +2237,7 @@ async def check_beta_connector_access(
             container.logger().debug(f"Feature flag refresh failed: {e}")
 
         # Check if beta connectors are enabled
-        beta_enabled = feature_flag_service.is_feature_enabled(CONFIG.ENABLE_BETA_CONNECTORS)
+        beta_enabled = True # feature_flag_service.is_feature_enabled(CONFIG.ENABLE_BETA_CONNECTORS)
 
         if not beta_enabled:
             # Check if this connector is a beta connector

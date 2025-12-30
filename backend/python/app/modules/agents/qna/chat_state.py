@@ -58,6 +58,7 @@ class ChatState(TypedDict):
     apps: Optional[List[str]]  # List of app IDs to search in
     kb: Optional[List[str]]  # List of KB IDs to search in
     tools: Optional[List[str]]  # List of tool names to enable for this agent
+    mcp_tools: Optional[List[Dict[str, Any]]]  # MCP tools from external service
     output_file_path: Optional[str]  # Optional file path for saving responses
 
     # Tool calling specific fields - no ToolExecutor dependency
@@ -137,6 +138,7 @@ def build_initial_state(chat_query: Dict[str, Any], user_info: Dict[str, Any], l
 
     # Get tools configuration - no restrictions, let LLM decide
     tools = chat_query.get("tools", None)  # None means all tools available
+    mcp_tools = chat_query.get("mcpTools", None)  # MCP tools from Node.js backend
     output_file_path = chat_query.get("outputFilePath", None)
 
     # Build filters based on allowed apps and knowledge bases
@@ -191,6 +193,7 @@ def build_initial_state(chat_query: Dict[str, Any], user_info: Dict[str, Any], l
         "apps": apps,
         "kb": kb,
         "tools": tools,
+        "mcp_tools": mcp_tools,  # Add MCP tools to state
         "output_file_path": output_file_path,
 
         # Tool calling specific fields - direct execution

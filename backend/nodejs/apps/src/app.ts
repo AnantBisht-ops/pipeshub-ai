@@ -12,6 +12,8 @@ import { ErrorMiddleware } from './libs/middlewares/error.middleware';
 import { createUserRouter } from './modules/user_management/routes/users.routes';
 import { createUserGroupRouter } from './modules/user_management/routes/userGroups.routes';
 import { createOrgRouter } from './modules/user_management/routes/org.routes';
+import organizationRoutes from './modules/org_management/routes/organization.routes';
+import projectRoutes from './modules/project_management/routes/project.routes';
 import {
   createConversationalRouter,
   createSemanticSearchRouter,
@@ -53,6 +55,9 @@ import { CrawlingManagerContainer } from './modules/crawling_manager/container/c
 import createCrawlingManagerRouter from './modules/crawling_manager/routes/cm_routes';
 import { MigrationService } from './modules/configuration_manager/services/migration.service';
 import { createTeamsRouter } from './modules/user_management/routes/teams.routes';
+import mcpIntegrationRoutes from './modules/qna/routes/mcp-integration.routes';
+import { CronSchedulerContainer } from './modules/cron_scheduler/container/cronScheduler.container';
+import { createCronSchedulerRoutes } from './modules/cron_scheduler/routes/cronScheduler.routes';
 
 const loggerConfig = {
   service: 'Application',
@@ -72,6 +77,7 @@ export class Application {
   private mailServiceContainer!: Container;
   private notificationContainer!: Container;
   private crawlingManagerContainer!: Container;
+  private cronSchedulerContainer!: Container;
   private port: number;
 
   constructor() {
@@ -122,7 +128,10 @@ export class Application {
       );
 
       this.mailServiceContainer =
-        await MailServiceContainer.initialize(appConfig);
+        await MailServiceContainer.initialize(
+          configurationManagerConfig,
+          appConfig,
+        );
 
       this.notificationContainer =
         await NotificationContainer.initialize(appConfig);
@@ -132,6 +141,10 @@ export class Application {
           configurationManagerConfig,
           appConfig,
         );
+
+      // Initialize Cron Scheduler
+      this.cronSchedulerContainer = await CronSchedulerContainer.initialize(appConfig);
+      this.logger.info('Cron Scheduler module initialized');
 
       // binding prometheus to all services routes
       this.logger.debug('Binding Prometheus Service with other services');
@@ -179,6 +192,11 @@ export class Application {
         .toSelf()
         .inSingletonScope();
 
+      this.cronSchedulerContainer
+        .bind<PrometheusService>(PrometheusService)
+        .toSelf()
+        .inSingletonScope();
+
       // Configure Express
       this.configureMiddleware(appConfig);
       this.configureRoutes();
@@ -221,9 +239,11 @@ export class Application {
     ].filter(Boolean);
 
     this.app.use(helmet({
+      strictTransportSecurity: false,
       crossOriginOpenerPolicy: { policy: "unsafe-none" }, // Required for MSAL popup
       contentSecurityPolicy: {
         directives: {
+          upgradeInsecureRequests: null, // Disable HTTPS upgrade for HTTP-only environments
           defaultSrc: ["'self'"],
           scriptSrc: [
             "'self'",
@@ -301,6 +321,8 @@ export class Application {
       createUserGroupRouter(this.entityManagerContainer),
     );
     this.app.use('/api/v1/org', createOrgRouter(this.entityManagerContainer));
+    this.app.use('/api/v1/organizations', organizationRoutes);
+    this.app.use('/api/v1/projects', projectRoutes);
 
     this.app.use('/api/v1/saml', createSamlRouter(this.authServiceContainer, this.entityManagerContainer));
 
@@ -365,6 +387,16 @@ export class Application {
       '/api/v1/crawlingManager',
       createCrawlingManagerRouter(this.crawlingManagerContainer),
     );
+
+    // MCP integration routes
+    this.app.use('/api/v1/mcp', mcpIntegrationRoutes);
+
+    // Cron Scheduler routes
+    this.app.use(
+      '/api/v1/cron',
+      createCronSchedulerRoutes(this.cronSchedulerContainer)
+    );
+    this.logger.info('Cron Scheduler routes registered at /api/v1/cron');
   }
 
   private configureErrorHandling(): void {
@@ -403,6 +435,7 @@ export class Application {
       await ConfigurationManagerContainer.dispose();
       await MailServiceContainer.dispose();
       await CrawlingManagerContainer.dispose();
+      await CronSchedulerContainer.dispose();
 
       this.logger.info('Application stopped successfully');
     } catch (error) {

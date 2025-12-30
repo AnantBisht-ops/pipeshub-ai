@@ -83,8 +83,10 @@ import {
 } from '../schema/agent.conversation.schema';
 import { Users } from '../../user_management/schema/users.schema';
 import { AuthTokenService } from '../../../libs/services/authtoken.service';
+import { McpAgentService } from '../../../services/mcp-agent.service';
 
 const logger = Logger.getInstance({ service: 'Enterprise Search Service' });
+const mcpAgentService = new McpAgentService();
 const rsAvailable = process.env.REPLICA_SET_AVAILABLE === 'true';
 const AI_SERVICE_UNAVAILABLE_MESSAGE =
   'AI Service is currently unavailable. Please check your network connection or try again later.';
@@ -194,9 +196,11 @@ export const streamChat =
 
       // Create initial conversation record
       const userQueryMessage = buildUserQueryMessage(req.body.query);
+      const projectId = (req as any).project?.projectId;
 
       const userConversationData: Partial<IConversation> = {
         orgId,
+        projectId: projectId || undefined, // Add projectId if available
         userId,
         initiator: userId,
         title: req.body.query.slice(0, 100),
@@ -566,9 +570,11 @@ export const createConversation =
       session?: ClientSession | null,
     ): Promise<any> {
       const userQueryMessage = buildUserQueryMessage(req.body.query);
+      const projectId = (req as any).project?.projectId;
 
       const userConversationData: Partial<IConversation> = {
         orgId,
+        projectId: projectId || undefined, // Add projectId if available
         userId,
         initiator: userId,
         title: req.body.query.slice(0, 100),
@@ -852,10 +858,12 @@ export const addMessage =
       // Extract common operations into a helper function.
       async function performAddMessage(session?: ClientSession | null) {
         // Get existing conversation
+        const projectId = (req as any).project?.projectId;
         const conversation = await Conversation.findOne({
           _id: req.params.conversationId,
           orgId,
           userId,
+          projectId: projectId || { $in: [null, undefined] }, // Backward compatibility
           isDeleted: false,
         });
 
@@ -1129,10 +1137,12 @@ export const addMessageStream =
       session?: ClientSession | null,
     ): Promise<void> {
       // Get existing conversation
+      const projectId = (req as any).project?.projectId;
       const conversation = await Conversation.findOne({
         _id: conversationId,
         orgId,
         userId,
+        projectId: projectId || { $in: [null, undefined] }, // Backward compatibility
         isDeleted: false,
       });
 
@@ -1888,10 +1898,12 @@ export const deleteConversationById = async (
     // Common helper that performs the delete operation.
     async function performDeleteConversation(session?: ClientSession | null) {
       // Get conversation with access control
+      const projectId = (req as any).project?.projectId;
       const conversation: IConversation | null = await Conversation.findOne({
         _id: conversationId,
         userId,
         orgId,
+        projectId: projectId || { $in: [null, undefined] }, // Backward compatibility
         isDeleted: false,
         $or: [
           { initiator: userId },
@@ -2041,10 +2053,12 @@ export const shareConversationById =
         }
 
         // Get conversation with access control
+        const projectId = (req as any).project?.projectId;
         const conversation: IConversation | null = await Conversation.findOne({
           _id: conversationId,
           orgId,
           userId,
+          projectId: projectId || { $in: [null, undefined] }, // Backward compatibility
           isDeleted: false,
           initiator: userId, // Only initiator can share
         });
@@ -2221,9 +2235,11 @@ export const unshareConversationById = async (
 
     async function performUnshareConversation(session?: ClientSession | null) {
       // Get conversation with access control
+      const projectId = (req as any).project?.projectId;
       const conversation = await Conversation.findOne({
         _id: conversationId,
         orgId,
+        projectId: projectId || { $in: [null, undefined] }, // Backward compatibility
         isDeleted: false,
         initiator: userId, // Only initiator can unshare
       });
@@ -2803,10 +2819,12 @@ export const updateTitle = async (
     session = await mongoose.startSession();
     session.startTransaction();
 
+    const projectId = (req as any).project?.projectId;
     const conversation = await Conversation.findOne({
       _id: conversationId,
       orgId,
       userId,
+      projectId: projectId || { $in: [null, undefined] }, // Backward compatibility
       isDeleted: false,
     });
 
@@ -2872,10 +2890,12 @@ export const updateFeedback = async (
     });
 
     async function performUpdateFeedback(session?: ClientSession | null) {
+      const projectId = (req as any).project?.projectId;
       const conversation = await Conversation.findOne({
         _id: conversationId,
         orgId,
         userId,
+        projectId: projectId || { $in: [null, undefined] }, // Backward compatibility
         isDeleted: false,
         $or: [
           { initiator: userId },
@@ -3004,10 +3024,12 @@ export const archiveConversation = async (
 
     async function performArchiveConversation(session?: ClientSession | null) {
       // Get conversation with access control
+      const projectId = (req as any).project?.projectId;
       const conversation = await Conversation.findOne({
         _id: conversationId,
         userId,
         orgId,
+        projectId: projectId || { $in: [null, undefined] }, // Backward compatibility
         isDeleted: false,
         $or: [
           { initiator: userId },
@@ -3115,10 +3137,12 @@ export const unarchiveConversation = async (
       session?: ClientSession | null,
     ) {
       // Get conversation with access control
+      const projectId = (req as any).project?.projectId;
       const conversation = await Conversation.findOne({
         _id: conversationId,
         userId,
         orgId,
+        projectId: projectId || { $in: [null, undefined] }, // Backward compatibility
         isDeleted: false,
         $or: [
           { initiator: userId },
@@ -4549,9 +4573,11 @@ export const unshareAgent =
 
       // Create initial conversation record
       const userQueryMessage = buildUserQueryMessage(req.body.query);
+      const projectId = (req as any).project?.projectId;
 
       const userConversationData: Partial<IAgentConversation> = {
         orgId,
+        projectId: projectId || undefined, // Add projectId if available
         userId,
         initiator: userId,
         title: req.body.query.slice(0, 100),
@@ -4588,7 +4614,34 @@ export const unshareAgent =
         agentKey,
       });
 
-      // Prepare AI payload
+      // Fetch MCP tools for the user
+      let mcpTools: any[] = [];
+      try {
+        logger.info('Fetching MCP tools for user', { userId });
+        const mcpToolsResponse = await mcpAgentService.getToolsForUser(userId);
+
+        // Transform MCP tools to the format expected by Python backend
+        mcpTools = mcpToolsResponse.map(tool => ({
+          name: tool.name,
+          description: tool.description,
+          provider: tool.provider,
+          parameters: tool.parameters,
+          isMcpTool: true // Flag to identify MCP tools
+        }));
+
+        logger.info('MCP tools fetched successfully', {
+          userId,
+          mcpToolsCount: mcpTools.length,
+          mcpToolNames: mcpTools.map(t => t.name)
+        });
+      } catch (mcpError: any) {
+        logger.error('Failed to fetch MCP tools, continuing without them', {
+          userId,
+          error: mcpError.message
+        });
+      }
+
+      // Prepare AI payload with MCP tools
       const aiPayload = {
         query: req.body.query,
         quickMode: req.body.quickMode || false,
@@ -4596,12 +4649,16 @@ export const unshareAgent =
         recordIds: req.body.recordIds || [],
         filters: req.body.filters || {},
         tools: req.body.tools || [],
+        mcpTools: mcpTools, // Add MCP tools separately
         chatMode: req.body.chatMode || 'quick',
         modelKey: req.body.modelKey || null,
         modelName: req.body.modelName || null,
       };
 
-      logger.info('aiPayload', aiPayload);
+      logger.info('aiPayload with MCP tools', {
+        ...aiPayload,
+        mcpToolsCount: mcpTools.length
+      });
 
       const aiCommandOptions: AICommandOptions = {
         uri: `${appConfig.aiBackend}/api/v1/agent/${agentKey}/chat/stream`,
@@ -4845,9 +4902,11 @@ export const createAgentConversation =
       session?: ClientSession | null,
     ): Promise<any> {
       const userQueryMessage = buildUserQueryMessage(req.body.query);
+      const projectId = (req as any).project?.projectId;
 
       const userConversationData: Partial<IAgentConversation> = {
         orgId,
+        projectId: projectId || undefined, // Add projectId if available
         userId,
         initiator: userId,
         title: req.body.query.slice(0, 100),
@@ -5081,11 +5140,13 @@ export const createAgentConversation =
       // Extract common operations into a helper function.
       async function performAddMessage(session?: ClientSession | null) {
         // Get existing conversation
+        const projectId = (req as any).project?.projectId;
         const conversation = await AgentConversation.findOne({
           _id: req.params.conversationId,
           agentKey,
           orgId,
           userId,
+          projectId: projectId || { $in: [null, undefined] }, // Backward compatibility
           isDeleted: false,
         });
 
@@ -5372,10 +5433,12 @@ export const addMessageStreamToAgentConversation =
       session?: ClientSession | null,
     ): Promise<void> {
       // Get existing conversation
+      const projectId = (req as any).project?.projectId;
       const conversation = await AgentConversation.findOne({
         _id: conversationId,
         agentKey,
         orgId,
+        projectId: projectId || { $in: [null, undefined] }, // Backward compatibility
         userId,
         isDeleted: false,
       });
@@ -6217,7 +6280,7 @@ export const getAgentPermissions =
       throw handleBackendError(aiResponse.data, 'Get Agent Permissions');
     }
     const permissions = aiResponse.data;
-    res.status(200).json(permissions);    
+    res.status(200).json(permissions);
   } catch (error: any) {
     logger.error('Error getting agent permissions', {
       requestId,
@@ -6227,4 +6290,50 @@ export const getAgentPermissions =
     const backendError = handleBackendError(error, 'Get Agent Permissions');
     next(backendError);
   }
-};  
+};
+
+/**
+ * Execute MCP tool on behalf of the Python backend
+ * This endpoint is called when Python agent needs to execute an MCP tool
+ */
+export const executeMCPTool =
+  (_appConfig: AppConfig) =>
+  async (req: AuthenticatedUserRequest, res: Response, next: NextFunction): Promise<void> => {
+    const requestId = req.context?.requestId || `mcp-exec-${Date.now()}`;
+
+    try {
+      const { user_id, action, params } = req.body;
+
+      if (!user_id || !action) {
+        throw new BadRequestError('user_id and action are required');
+      }
+
+      logger.info('Executing MCP tool', {
+        requestId,
+        userId: user_id,
+        action,
+        params: Object.keys(params || {})
+      });
+
+      // Execute the tool using MCP service
+      const result = await mcpAgentService.executeUserAction(user_id, action, params || {});
+
+      logger.info('MCP tool executed successfully', {
+        requestId,
+        userId: user_id,
+        action,
+        success: result.success
+      });
+
+      res.status(200).json(result);
+    } catch (error: any) {
+      logger.error('Failed to execute MCP tool', {
+        requestId,
+        error: error.message,
+        stack: error.stack
+      });
+
+      const backendError = handleBackendError(error, 'Execute MCP Tool');
+      next(backendError);
+    }
+  };  

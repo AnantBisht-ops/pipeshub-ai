@@ -173,7 +173,7 @@ export function setupCrawlingDependencies(
   // Bind crawling connector services
 
   container
-    .bind<ConnectorsCrawlingService>(ConnectorsCrawlingService)
+    .bind<ConnectorsCrawlingService>('ConnectorsCrawlingService')
     .to(ConnectorsCrawlingService)
     .inSingletonScope();
 

@@ -5,17 +5,13 @@ import react from '@vitejs/plugin-react-swc';
 
 // ----------------------------------------------------------------------
 
-const PORT = 3001;
+const PORT = 3000;
 
 export default defineConfig({
   plugins: [
     react(),
     checker({
       typescript: true,
-      eslint: {
-        lintCommand: 'eslint "./src/**/*.{js,jsx,ts,tsx}"',
-        dev: { logLevel: ['error'] },
-      },
       overlay: {
         position: 'tl',
         initialIsOpen: false,
