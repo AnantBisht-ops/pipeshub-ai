@@ -1,0 +1,93 @@
+/**
+ * App.ts Integration Snippet for Cron Scheduler
+ * Add these changes to your main app.ts file
+ * As per IMPLEMENTATION_PLAN.md Phase 5 Step 5.3
+ */
+
+// ============================================
+// 1. ADD THIS IMPORT AT THE TOP OF app.ts
+// ============================================
+import { CronSchedulerContainer } from './modules/cron_scheduler/container/cronScheduler.container';
+import { createCronSchedulerRoutes } from './modules/cron_scheduler/routes/cronScheduler.routes';
+
+// ============================================
+// 2. ADD THIS PROPERTY TO THE Application CLASS
+// ============================================
+export class Application {
+  // ... existing properties ...
+  private cronSchedulerContainer!: Container;  // <-- ADD THIS LINE
+  // ... rest of properties ...
+}
+
+// ============================================
+// 3. ADD THIS IN THE initialize() METHOD
+// ============================================
+async initialize(): Promise<void> {
+  try {
+    // ... existing initialization code ...
+
+    // Initialize Cron Scheduler (ADD THIS BLOCK)
+    this.cronSchedulerContainer = await CronSchedulerContainer.initialize(appConfig);
+    this.logger.info('Cron Scheduler module initialized');
+
+    // ... rest of initialization ...
+  } catch (error: any) {
+    // ... error handling ...
+  }
+}
+
+// ============================================
+// 4. ADD THIS IN THE configureRoutes() METHOD
+// ============================================
+private configureRoutes(): void {
+  // ... existing routes ...
+
+  // Cron Scheduler Routes (ADD THIS BLOCK)
+  this.app.use(
+    '/api/v1/cron',
+    createCronSchedulerRoutes(this.cronSchedulerContainer)
+  );
+  this.logger.info('Cron Scheduler routes registered at /api/v1/cron');
+
+  // ... rest of routes ...
+}
+
+// ============================================
+// COMPLETE EXAMPLE OF WHERE TO ADD EACH PART:
+// ============================================
+
+/*
+IMPORTS SECTION (around line 1-60):
+-----------------------------------
+import { CronSchedulerContainer } from './modules/cron_scheduler/container/cronScheduler.container';
+import { createCronSchedulerRoutes } from './modules/cron_scheduler/routes/cronScheduler.routes';
+
+CLASS PROPERTIES (around line 65-80):
+-------------------------------------
+private cronSchedulerContainer!: Container;
+
+INITIALIZE METHOD (around line 100-150):
+----------------------------------------
+// After other containers are initialized
+this.cronSchedulerContainer = await CronSchedulerContainer.initialize(appConfig);
+
+CONFIGURE ROUTES METHOD (around line 300-380):
+----------------------------------------------
+// After other API routes
+this.app.use('/api/v1/cron', createCronSchedulerRoutes(this.cronSchedulerContainer));
+*/
+
+// ============================================
+// API ENDPOINTS AFTER INTEGRATION:
+// ============================================
+/*
+POST   /api/v1/cron/schedule           - Schedule a new job
+GET    /api/v1/cron/jobs               - List all jobs
+GET    /api/v1/cron/jobs/:id           - Get job details
+PATCH  /api/v1/cron/jobs/:id           - Update job
+DELETE /api/v1/cron/jobs/:id           - Delete job
+PATCH  /api/v1/cron/jobs/:id/pause     - Pause job
+PATCH  /api/v1/cron/jobs/:id/resume    - Resume job
+GET    /api/v1/cron/jobs/:id/history   - Get execution history
+GET    /api/v1/cron/health             - Health check
+*/

@@ -56,6 +56,8 @@ import createCrawlingManagerRouter from './modules/crawling_manager/routes/cm_ro
 import { MigrationService } from './modules/configuration_manager/services/migration.service';
 import { createTeamsRouter } from './modules/user_management/routes/teams.routes';
 import mcpIntegrationRoutes from './modules/qna/routes/mcp-integration.routes';
+import { CronSchedulerContainer } from './modules/cron_scheduler/container/cronScheduler.container';
+import { createCronSchedulerRoutes } from './modules/cron_scheduler/routes/cronScheduler.routes';
 
 const loggerConfig = {
   service: 'Application',
@@ -75,6 +77,7 @@ export class Application {
   private mailServiceContainer!: Container;
   private notificationContainer!: Container;
   private crawlingManagerContainer!: Container;
+  private cronSchedulerContainer!: Container;
   private port: number;
 
   constructor() {
@@ -139,6 +142,10 @@ export class Application {
           appConfig,
         );
 
+      // Initialize Cron Scheduler
+      this.cronSchedulerContainer = await CronSchedulerContainer.initialize(appConfig);
+      this.logger.info('Cron Scheduler module initialized');
+
       // binding prometheus to all services routes
       this.logger.debug('Binding Prometheus Service with other services');
       this.tokenManagerContainer
@@ -181,6 +188,11 @@ export class Application {
         .inSingletonScope();
 
       this.crawlingManagerContainer
+        .bind<PrometheusService>(PrometheusService)
+        .toSelf()
+        .inSingletonScope();
+
+      this.cronSchedulerContainer
         .bind<PrometheusService>(PrometheusService)
         .toSelf()
         .inSingletonScope();
@@ -378,6 +390,13 @@ export class Application {
 
     // MCP integration routes
     this.app.use('/api/v1/mcp', mcpIntegrationRoutes);
+
+    // Cron Scheduler routes
+    this.app.use(
+      '/api/v1/cron',
+      createCronSchedulerRoutes(this.cronSchedulerContainer)
+    );
+    this.logger.info('Cron Scheduler routes registered at /api/v1/cron');
   }
 
   private configureErrorHandling(): void {
@@ -416,6 +435,7 @@ export class Application {
       await ConfigurationManagerContainer.dispose();
       await MailServiceContainer.dispose();
       await CrawlingManagerContainer.dispose();
+      await CronSchedulerContainer.dispose();
 
       this.logger.info('Application stopped successfully');
     } catch (error) {

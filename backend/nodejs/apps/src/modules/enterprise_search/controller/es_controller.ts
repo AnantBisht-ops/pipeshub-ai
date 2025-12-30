@@ -6297,8 +6297,8 @@ export const getAgentPermissions =
  * This endpoint is called when Python agent needs to execute an MCP tool
  */
 export const executeMCPTool =
-  (appConfig: AppConfig) =>
-  async (req: AuthenticatedUserRequest, res: Response, next: NextFunction) => {
+  (_appConfig: AppConfig) =>
+  async (req: AuthenticatedUserRequest, res: Response, next: NextFunction): Promise<void> => {
     const requestId = req.context?.requestId || `mcp-exec-${Date.now()}`;
 
     try {
@@ -6325,7 +6325,7 @@ export const executeMCPTool =
         success: result.success
       });
 
-      return res.status(200).json(result);
+      res.status(200).json(result);
     } catch (error: any) {
       logger.error('Failed to execute MCP tool', {
         requestId,
