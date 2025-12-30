@@ -287,7 +287,7 @@ export class OrgController {
     const orgId = req.user?.orgId;
     this.logger.info(orgId);
     try {
-      const org = await Org.findOne({ orgId, isDeleted: false });
+      const org = await Org.findOne({ _id: orgId, isDeleted: false });
 
       if (!org) {
         throw new NotFoundError('Organisation not found');
@@ -315,7 +315,7 @@ export class OrgController {
     try {
       const orgId = req.user?.orgId;
 
-      const org = await Org.findOne({ orgId, isDeleted: false });
+      const org = await Org.findOne({ _id: orgId, isDeleted: false });
 
       if (!org) {
         throw new NotFoundError('Organisation not found');
@@ -369,7 +369,7 @@ export class OrgController {
   ): Promise<void> {
     try {
       const orgId = req.user?.orgId;
-      const org = await Org.findOne({ orgId, isDeleted: false });
+      const org = await Org.findOne({ _id: orgId, isDeleted: false });
 
       if (!org) {
         throw new NotFoundError('Organisation not found');

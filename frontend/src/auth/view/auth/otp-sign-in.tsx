@@ -22,7 +22,7 @@ import { Iconify } from 'src/components/iconify';
 import { Form, Field } from 'src/components/hook-form';
 
 import { useAuthContext } from 'src/auth/hooks';
-import { sendOtp, VerifyOtp } from 'src/auth/context/jwt';
+import { sendOtp, VerifyOtp, isDesktopAuthResponse } from 'src/auth/context/jwt';
 
 // Schema for OTP
 const OtpSchema = zod.object({
@@ -149,7 +149,20 @@ export default function OtpSignIn({
         otp: data.otp,
       });
 
-      // Check the response
+      // Check for desktop auth response - redirect to custom protocol
+      if (isDesktopAuthResponse(response)) {
+        console.log('[Auth] Desktop auth via OTP, redirecting to:', response.callbackUrl);
+        if (onNextStep) {
+          onNextStep(response);
+        } else {
+          setTimeout(() => {
+            window.location.href = response.callbackUrl;
+          }, 100);
+        }
+        return;
+      }
+
+      // Check the response for MFA flow
       if (response && response.nextStep !== undefined && onNextStep) {
         // We need to move to the next authentication step
         onNextStep(response);

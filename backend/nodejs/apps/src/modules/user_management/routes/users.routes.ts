@@ -149,9 +149,13 @@ const updateUserValidationSchema = z.object({
   params: UserIdUrlParams,
   headers: z.object({}),
 });
+const emailQueryParams = z.object({
+  email: z.string().email('Invalid email format'),
+});
+
 const emailIdValidationSchema = z.object({
-  body: updateEmailBody,
-  query: z.object({}),
+  body: z.object({}),
+  query: emailQueryParams,
   params: z.object({}),
   headers: z.object({}),
 });
@@ -298,6 +302,25 @@ export function createUserRouter(container: Container) {
       try {
         const userController = container.get<UserController>('UserController');
         await userController.createUser(req, res, next);
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
+
+  // Resync current user to ArangoDB (useful when user is missing from ArangoDB)
+  router.post(
+    '/resync',
+    authMiddleware.authenticate,
+    metricsMiddleware(container),
+    async (
+      req: AuthenticatedUserRequest,
+      res: Response,
+      next: NextFunction,
+    ) => {
+      try {
+        const userController = container.get<UserController>('UserController');
+        await userController.resyncCurrentUser(req, res, next);
       } catch (error) {
         next(error);
       }

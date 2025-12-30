@@ -66,7 +66,7 @@ export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ chil
   const { user, checkUserSession } = useAuthContext();
   const [organizations, setOrganizations] = useState<UserOrganization[]>([]);
   const [currentOrg, setCurrentOrg] = useState<Organization | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Fetch user's organizations
@@ -83,7 +83,16 @@ export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ chil
       setError(null);
 
       const response = await axiosInstance.get('/api/v1/organizations/my-organizations');
-      const { organizations: orgs, currentOrgId, defaultOrgId } = response.data;
+
+      const { organizations: orgs, currentOrgId, defaultOrgId } = response.data || {};
+
+      // Handle if orgs is undefined or not an array
+      if (!orgs || !Array.isArray(orgs)) {
+        setOrganizations([]);
+        setCurrentOrg(null);
+        setIsLoading(false);
+        return;
+      }
 
       setOrganizations(orgs);
 
@@ -91,17 +100,17 @@ export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ chil
       // 1. currentOrgId from response (last accessed)
       // 2. defaultOrgId from response
       // 3. First organization in the list
-      const targetOrgId = currentOrgId || defaultOrgId || orgs[0]?.organization?._id;
+      const targetOrgId = currentOrgId || defaultOrgId || orgs?.[0]?.organization?._id;
 
-      if (targetOrgId) {
+      if (targetOrgId && orgs.length > 0) {
         const currentOrgData = orgs.find((org: UserOrganization) =>
-          org.organization._id === targetOrgId
+          org?.organization?._id === targetOrgId
         );
-        setCurrentOrg(currentOrgData?.organization || orgs[0]?.organization);
+        setCurrentOrg(currentOrgData?.organization || orgs[0]?.organization || null);
       } else {
         setCurrentOrg(null);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to fetch organizations:', err);
       setError('Failed to load organizations');
       setOrganizations([]);
@@ -127,10 +136,15 @@ export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ chil
         localStorage.setItem('refreshToken', response.data.refreshToken);
       }
 
-      // Update current organization
-      const targetOrg = organizations.find(org => org.organization._id === orgId);
-      if (targetOrg) {
+      // Update current organization - handle both nested and flat structures
+      const targetOrg = organizations.find(org =>
+        org?.organization?._id === orgId || (org as any)?._id === orgId
+      );
+      if (targetOrg?.organization) {
         setCurrentOrg(targetOrg.organization);
+      } else if ((targetOrg as any)?._id) {
+        // Handle flat structure
+        setCurrentOrg(targetOrg as any);
       }
 
       // Refresh user session to update JWT context
@@ -197,7 +211,7 @@ export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ chil
       setCurrentOrg(updatedOrg);
       setOrganizations(prev =>
         prev.map(org =>
-          org.organization._id === updatedOrg._id
+          org?.organization?._id === updatedOrg._id || (org as any)?._id === updatedOrg._id
             ? { ...org, organization: updatedOrg }
             : org
         )

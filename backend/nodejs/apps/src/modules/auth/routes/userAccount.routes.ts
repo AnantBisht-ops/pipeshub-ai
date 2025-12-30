@@ -1,4 +1,4 @@
-import { Router, Response, NextFunction } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { Container } from 'inversify';
 import { ValidationMiddleware } from '../../../libs/middlewares/validation.middleware';
@@ -12,7 +12,11 @@ import { AuthSessionRequest } from '../middlewares/types';
 import { UserAccountController } from '../controller/userAccount.controller';
 import { AuthMiddleware } from '../../../libs/middlewares/auth.middleware';
 import { TokenScopes } from '../../../libs/enums/token-scopes.enum';
-import { AuthenticatedServiceRequest } from '../../../libs/middlewares/types';
+import {
+  AuthenticatedServiceRequest,
+  AuthenticatedUserRequest,
+} from '../../../libs/middlewares/types';
+import { detectAuthSource } from '../../../libs/middlewares/sourceDetection.middleware';
 
 const otpGenerationBody = z.object({
   email: z.string().email('Invalid email'),
@@ -33,6 +37,7 @@ export function createUserAccountRouter(container: Container) {
 
   router.post(
     '/initAuth',
+    detectAuthSource,
     async (req: AuthSessionRequest, res: Response, next: NextFunction) => {
       try {
         const userAccountController = container.get<UserAccountController>(
@@ -46,6 +51,7 @@ export function createUserAccountRouter(container: Container) {
   );
   router.post(
     '/authenticate',
+    detectAuthSource,
     authSessionMiddleware,
     async (req: AuthSessionRequest, res: Response, next: NextFunction) => {
       try {
@@ -183,6 +189,56 @@ export function createUserAccountRouter(container: Container) {
           'UserAccountController',
         );
         await userAccountController.exchangeOAuthToken(req, res, next);
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
+
+  // ============ DESKTOP AUTHENTICATION ROUTES ============
+
+  /**
+   * Refresh desktop access token
+   *
+   * Desktop apps can use this endpoint to get a new access token
+   * using their refresh token. Returns new 30-day tokens.
+   *
+   * POST /api/v1/userAccount/desktop/refresh
+   * Body: { refreshToken: string }
+   */
+  router.post(
+    '/desktop/refresh',
+    detectAuthSource,
+    async (req: Request, res: Response, next: NextFunction) => {
+      try {
+        const userAccountController = container.get<UserAccountController>(
+          'UserAccountController',
+        );
+        await userAccountController.refreshDesktopToken(req, res, next);
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
+
+  /**
+   * Get desktop user profile
+   *
+   * Returns the authenticated user's profile information.
+   * Used by desktop apps to display user info and verify token validity.
+   *
+   * GET /api/v1/userAccount/desktop/profile
+   * Header: Authorization: Bearer <access_token>
+   */
+  router.get(
+    '/desktop/profile',
+    authMiddleware.authenticate.bind(authMiddleware),
+    async (req: AuthenticatedUserRequest, res: Response, next: NextFunction) => {
+      try {
+        const userAccountController = container.get<UserAccountController>(
+          'UserAccountController',
+        );
+        await userAccountController.getDesktopProfile(req, res, next);
       } catch (error) {
         next(error);
       }

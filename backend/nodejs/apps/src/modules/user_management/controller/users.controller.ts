@@ -189,7 +189,7 @@ export class UserController {
     next: NextFunction,
   ): Promise<void> {
     try {
-      const { email } = req.body;
+      const { email } = req.query;
 
       const users = await Users.find({
         email: email,
@@ -1332,5 +1332,57 @@ export class UserController {
       lastName: lastName || undefined,
       fullName,
     };
+  }
+
+  /**
+   * Resync current user to ArangoDB by re-publishing the user event to Kafka
+   * This is useful when a user exists in MongoDB but is missing from ArangoDB
+   */
+  async resyncCurrentUser(
+    req: AuthenticatedUserRequest,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
+    try {
+      const userId = req.user?.userId;
+      const orgId = req.user?.orgId;
+
+      if (!userId || !orgId) {
+        throw new BadRequestError('User ID and Organization ID are required');
+      }
+
+      // Get the user from MongoDB
+      const user = await Users.findOne({ _id: userId, isDeleted: false });
+      if (!user) {
+        throw new NotFoundError('User not found');
+      }
+
+      // Publish user event to Kafka to sync to ArangoDB
+      await this.eventService.start();
+      const event: Event = {
+        eventType: EventType.NewUserEvent,
+        timestamp: Date.now(),
+        payload: {
+          orgId: orgId.toString(),
+          userId: user._id.toString(),
+          fullName: user.fullName,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          email: user.email,
+          designation: user.designation,
+          syncAction: SyncAction.None,
+        } as UserAddedEvent,
+      };
+      await this.eventService.publishEvent(event);
+      await this.eventService.stop();
+
+      this.logger.info(`Resynced user ${userId} to ArangoDB`);
+      res.status(200).json({
+        message: 'User resync initiated successfully',
+        userId: user._id,
+      });
+    } catch (error) {
+      next(error);
+    }
   }
 }

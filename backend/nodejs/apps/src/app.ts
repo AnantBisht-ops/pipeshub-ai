@@ -12,8 +12,8 @@ import { ErrorMiddleware } from './libs/middlewares/error.middleware';
 import { createUserRouter } from './modules/user_management/routes/users.routes';
 import { createUserGroupRouter } from './modules/user_management/routes/userGroups.routes';
 import { createOrgRouter } from './modules/user_management/routes/org.routes';
-import organizationRoutes from './modules/org_management/routes/organization.routes';
-import projectRoutes from './modules/project_management/routes/project.routes';
+import { createOrganizationRouter } from './modules/org_management/routes/organization.routes';
+import { createProjectRouter } from './modules/project_management/routes/project.routes';
 import {
   createConversationalRouter,
   createSemanticSearchRouter,
@@ -58,6 +58,7 @@ import { createTeamsRouter } from './modules/user_management/routes/teams.routes
 import mcpIntegrationRoutes from './modules/qna/routes/mcp-integration.routes';
 import { CronSchedulerContainer } from './modules/cron_scheduler/container/cronScheduler.container';
 import { createCronSchedulerRoutes } from './modules/cron_scheduler/routes/cronScheduler.routes';
+import { OpenAnalystContainer, createOpenAnalystRouter } from './modules/openanalyst';
 
 const loggerConfig = {
   service: 'Application',
@@ -78,6 +79,8 @@ export class Application {
   private notificationContainer!: Container;
   private crawlingManagerContainer!: Container;
   private cronSchedulerContainer!: Container;
+  private openAnalystContainer!: Container;
+  private appConfig!: AppConfig;
   private port: number;
 
   constructor() {
@@ -93,6 +96,7 @@ export class Application {
       // Loads configuration
       const configurationManagerConfig = loadConfigurationManagerConfig();
       const appConfig = await loadAppConfig();
+      this.appConfig = appConfig;
 
       this.tokenManagerContainer = await TokenManagerContainer.initialize(
         configurationManagerConfig,
@@ -141,6 +145,11 @@ export class Application {
           configurationManagerConfig,
           appConfig,
         );
+
+      this.openAnalystContainer = await OpenAnalystContainer.initialize(
+        this.authServiceContainer,
+        appConfig,
+      );
 
       // Initialize Cron Scheduler
       this.cronSchedulerContainer = await CronSchedulerContainer.initialize(appConfig);
@@ -201,18 +210,20 @@ export class Application {
       this.configureMiddleware(appConfig);
       this.configureRoutes();
       this.setupSwagger();
+
+      // Serve static frontend files BEFORE error handling
+      this.app.use(express.static(path.join(__dirname, 'public')));
+      // SPA fallback route - must be after API routes but before error handling
+      this.app.get('*', (_req, res) => {
+        res.sendFile(path.join(__dirname, 'public', 'index.html'));
+      });
+
+      // Error handling must be LAST
       this.configureErrorHandling();
 
       this.notificationContainer
         .get<NotificationService>(NotificationService)
         .initialize(this.server);
-
-      // Serve static frontend files\
-      this.app.use(express.static(path.join(__dirname, 'public')));
-      // SPA fallback route\
-      this.app.get('*', (_req, res) => {
-        res.sendFile(path.join(__dirname, 'public', 'index.html'));
-      });
 
       this.logger.info('Application initialized successfully');
     } catch (error: any) {
@@ -270,13 +281,65 @@ export class Application {
     this.app.use(requestContextMiddleware);
 
     // CORS - ensure this matches your frontend domain
+    // Parse allowed origins from environment
+    const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:3000')
+      .split(',')
+      .map(origin => origin.trim())
+      .filter(Boolean);
+
+    // Desktop protocol origins for OpenAnalyst VSCode extension
+    // Read custom protocol from environment variable (default: openanalyst)
+    const customProtocol = process.env.DESKTOP_CUSTOM_PROTOCOL || 'openanalyst';
+    const desktopOrigins = [
+      `${customProtocol}://`,
+      'vscode://',
+      'vscode-webview://',
+    ];
+
+    const allOrigins = [...allowedOrigins, ...desktopOrigins];
+
     this.app.use(
       cors({
-        origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'], // Be more specific than '*'
+        origin: (origin, callback) => {
+          // Allow requests with no origin (mobile apps, Postman, desktop apps, curl)
+          if (!origin) {
+            callback(null, true);
+            return;
+          }
+
+          // Check if origin is in allowed list
+          const isAllowed = allOrigins.some(allowed => {
+            // Exact match
+            if (allowed === origin) return true;
+            // Protocol match (for custom protocols like pipeshub://)
+            if (origin.startsWith(allowed)) return true;
+            // Wildcard localhost ports (allow any localhost port in development)
+            if (allowed.includes('localhost') && origin.match(/^https?:\/\/localhost:\d+$/)) {
+              return true;
+            }
+            return false;
+          });
+
+          if (isAllowed) {
+            callback(null, true);
+          } else {
+            this.logger.warn('[CORS] Blocked origin:', { origin });
+            callback(new Error('Not allowed by CORS'));
+          }
+        },
         credentials: true,
-        exposedHeaders: ['x-session-token', 'content-disposition'],
-        methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-        allowedHeaders: ['Content-Type', 'Authorization', 'x-session-token']
+        exposedHeaders: [
+          'x-session-token',
+          'content-disposition',
+          'x-auth-source',  // Desktop auth source header
+        ],
+        methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+        allowedHeaders: [
+          'Content-Type',
+          'Authorization',
+          'x-session-token',
+          'x-auth-source',  // Desktop auth source header
+        ],
       }),
     );
 
@@ -321,8 +384,8 @@ export class Application {
       createUserGroupRouter(this.entityManagerContainer),
     );
     this.app.use('/api/v1/org', createOrgRouter(this.entityManagerContainer));
-    this.app.use('/api/v1/organizations', organizationRoutes);
-    this.app.use('/api/v1/projects', projectRoutes);
+    this.app.use('/api/v1/organizations', createOrganizationRouter(this.appConfig));
+    this.app.use('/api/v1/projects', createProjectRouter(this.appConfig));
 
     this.app.use('/api/v1/saml', createSamlRouter(this.authServiceContainer, this.entityManagerContainer));
 
@@ -397,6 +460,12 @@ export class Application {
       createCronSchedulerRoutes(this.cronSchedulerContainer)
     );
     this.logger.info('Cron Scheduler routes registered at /api/v1/cron');
+
+    // openanalyst routes (desktop extension)
+    this.app.use(
+      '/api/v1/openanalyst',
+      createOpenAnalystRouter(this.openAnalystContainer),
+    );
   }
 
   private configureErrorHandling(): void {
@@ -435,7 +504,6 @@ export class Application {
       await ConfigurationManagerContainer.dispose();
       await MailServiceContainer.dispose();
       await CrawlingManagerContainer.dispose();
-      await CronSchedulerContainer.dispose();
 
       this.logger.info('Application stopped successfully');
     } catch (error) {

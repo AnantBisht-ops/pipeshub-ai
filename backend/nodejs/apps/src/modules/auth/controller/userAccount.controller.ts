@@ -9,7 +9,18 @@ import {
   jwtGeneratorForForgotPasswordLink,
   mailJwtGenerator,
   refreshTokenJwtGenerator,
+  generateDesktopTokens,
+  generateDesktopCallbackJwt,
+  DesktopCallbackOrganization,
 } from '../../../libs/utils/createJwt';
+import {
+  AuthSource,
+  SourceAwareRequest,
+} from '../../../libs/middlewares/sourceDetection.middleware';
+import {
+  buildDesktopAuthResponse,
+  getDesktopCallbackUrlWithJwt,
+} from '../../../libs/utils/authRedirect.util';
 import { generateOtp } from '../utils/generateOtp';
 
 import { passwordValidator } from '../utils/passwordValidator';
@@ -54,7 +65,9 @@ import {
   OAUTH_AUTH_CONFIG_PATH,
 } from '../services/cm.service';
 import { AppConfig } from '../../tokens_manager/config/config';
-import { Org } from '../../user_management/schema/org.schema';
+import { Org, IOrg } from '../../user_management/schema/org.schema';
+import { Users } from '../../user_management/schema/users.schema';
+import { UserGroups } from '../../user_management/schema/userGroup.schema';
 
 const {
   LOGIN,
@@ -196,7 +209,7 @@ export class UserAccountController {
   }
 
   async initAuth(
-    req: AuthSessionRequest,
+    req: AuthSessionRequest & SourceAwareRequest,
     res: Response,
     next: NextFunction,
   ): Promise<void> {
@@ -222,12 +235,25 @@ export class UserAccountController {
       if (!orgAuthConfig) {
         throw new NotFoundError('Organisation configuration not found');
       }
+
+      // Detect auth source from request (set by sourceDetection middleware)
+      const authSource = req.authSource || AuthSource.WEB;
+      const isDesktopAuth = req.isDesktopAuth || false;
+
+      this.logger.debug('[Auth] Creating session with auth source', {
+        email: user.email,
+        authSource,
+        isDesktopAuth,
+      });
+
       const session = await this.sessionService.createSession({
         userId: user._id,
         email: user.email,
         orgId: user.orgId,
         authConfig: orgAuthConfig.authSteps,
         currentStep: 0,
+        authSource: authSource,
+        isDesktopAuth: isDesktopAuth,
       });
       if (!session) {
         throw new InternalServerError('Failed to create session');
@@ -1139,7 +1165,7 @@ export class UserAccountController {
   }
 
   async authenticate(
-    req: AuthSessionRequest,
+    req: AuthSessionRequest & SourceAwareRequest,
     res: Response,
     next: NextFunction,
   ): Promise<void> {
@@ -1282,6 +1308,132 @@ export class UserAccountController {
         return;
       } else {
         await this.sessionService.completeAuthentication(sessionInfo);
+
+        // Check if this is a desktop authentication (from session or request)
+        const authSource = req.authSource || sessionInfo.authSource || AuthSource.WEB;
+        const isDesktopAuth = authSource === AuthSource.DESKTOP || sessionInfo.isDesktopAuth === true;
+
+        if (isDesktopAuth) {
+          // DESKTOP AUTHENTICATION FLOW - Generate 30-day tokens with full org data
+          this.logger.info('[Auth] Desktop authentication successful', {
+            userId: user._id,
+            email: user.email,
+            authSource: AuthSource.DESKTOP,
+          });
+
+          // Determine if this is a new user (first login)
+          const isNewUser = !user.hasLoggedIn;
+
+          // Generate desktop tokens (30-day access, 90-day refresh)
+          const currentOrgId = sessionInfo.orgId || user.orgId;
+          const desktopTokens = generateDesktopTokens(
+            this.config.jwtSecret,
+            this.config.scopedJwtSecret,
+            {
+              _id: user._id,
+              orgId: currentOrgId,
+              email: user.email,
+              fullName: user.fullName,
+              firstName: user.firstName,
+              lastName: user.lastName,
+              accountType: user.accountType,
+            },
+          );
+
+          // Fetch user's organizations with roles
+          const userDoc = await Users.findById(user._id);
+          const organizations = await Org.find({
+            $or: [
+              { _id: { $in: userDoc?.organizations || [] } },
+              { _id: currentOrgId },
+              { contactEmail: user.email }
+            ],
+            isDeleted: false
+          }).select('_id slug registeredName shortName accountType contactEmail') as IOrg[];
+
+          // Get user role in each organization
+          const orgsWithRoles: DesktopCallbackOrganization[] = await Promise.all(
+            organizations.map(async (org: IOrg) => {
+              // Check if user is in admin group for this org
+              const adminGroup = await UserGroups.findOne({
+                orgId: org._id,
+                users: user._id,
+                type: 'admin'
+              });
+
+              // Check if user is the org creator
+              const isCreator = org.contactEmail === user.email;
+
+              return {
+                _id: (org._id as mongoose.Types.ObjectId).toString(),
+                name: org.registeredName || org.shortName || 'Organization',
+                slug: org.slug || '',
+                role: (adminGroup || isCreator ? 'admin' : 'member') as 'admin' | 'member',
+                accountType: (org.accountType || 'individual') as 'individual' | 'business',
+              };
+            })
+          );
+
+          // Generate callback JWT with complete auth data
+          const callbackJwt = generateDesktopCallbackJwt(
+            this.config.jwtSecret,
+            {
+              accessToken: desktopTokens.accessToken,
+              refreshToken: desktopTokens.refreshToken,
+              expiresIn: desktopTokens.expiresIn,
+              user: {
+                _id: user._id.toString(),
+                email: user.email,
+                fullName: user.fullName || '',
+                slug: user.slug || '',
+              },
+              organizations: orgsWithRoles,
+              currentOrgId: currentOrgId.toString(),
+              isNewUser,
+            }
+          );
+
+          // Generate callback URL with JWT
+          const callbackUrl = getDesktopCallbackUrlWithJwt(callbackJwt);
+
+          this.logger.info('[Auth] Desktop callback JWT generated', {
+            userId: user._id,
+            orgsCount: orgsWithRoles.length,
+            isNewUser,
+          });
+
+          // Update user login status if first login
+          if (isNewUser) {
+            const userInfo = {
+              ...user,
+              hasLoggedIn: true,
+            };
+            await this.iamService.updateUser(user._id, userInfo, desktopTokens.accessToken);
+            this.logger.info('[Auth] Desktop user hasLoggedIn updated');
+          }
+
+          // Build response with new callback URL
+          const desktopResponse = buildDesktopAuthResponse(
+            desktopTokens,
+            {
+              _id: user._id,
+              email: user.email,
+              fullName: user.fullName,
+              firstName: user.firstName,
+              lastName: user.lastName,
+              orgId: currentOrgId,
+            },
+          );
+
+          // Override callbackUrl with the new JWT-based one
+          res.status(200).json({
+            ...desktopResponse,
+            callbackUrl,
+          });
+          return;
+        }
+
+        // STANDARD WEB AUTHENTICATION FLOW - Generate 24h tokens
         const accessToken = await generateAuthToken(
           user,
           this.config.jwtSecret,
@@ -1443,6 +1595,172 @@ export class UserAccountController {
         expires_in: tokens.expires_in,
       });
 
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Refresh desktop access token
+   *
+   * Desktop apps can use this endpoint to get a new access token
+   * using their refresh token. Returns new 30-day tokens.
+   *
+   * POST /api/v1/userAccount/desktop/refresh
+   * Body: { refreshToken: string }
+   */
+  async refreshDesktopToken(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
+    try {
+      const { refreshToken } = req.body;
+
+      if (!refreshToken) {
+        throw new BadRequestError('Refresh token is required');
+      }
+
+      // Verify the refresh token
+      let decoded: any;
+      try {
+        decoded = jwt.verify(refreshToken, this.config.scopedJwtSecret);
+      } catch (jwtError) {
+        this.logger.warn('[Auth] Desktop refresh token verification failed', {
+          error: (jwtError as Error).message,
+        });
+        throw new UnauthorizedError('Invalid or expired refresh token');
+      }
+
+      // Check if it's a desktop token (has authSource claim)
+      if (decoded.authSource !== AuthSource.DESKTOP) {
+        this.logger.warn('[Auth] Non-desktop token used for desktop refresh', {
+          userId: decoded.userId,
+          authSource: decoded.authSource,
+        });
+        throw new UnauthorizedError('Invalid desktop refresh token');
+      }
+
+      // Check for TOKEN_REFRESH scope
+      if (!decoded.scopes?.includes('TOKEN_REFRESH')) {
+        throw new UnauthorizedError('Token does not have refresh scope');
+      }
+
+      // Get user data
+      const userResult = await this.iamService.getUserById(
+        decoded.userId,
+        iamUserLookupJwtGenerator(decoded.userId, decoded.orgId, this.config.scopedJwtSecret),
+      );
+
+      if (userResult.statusCode !== 200 || !userResult.data) {
+        throw new NotFoundError('User not found');
+      }
+
+      const user = userResult.data;
+
+      // Check if user is blocked
+      const userCredentials = await UserCredentials.findOne({
+        userId: decoded.userId,
+        orgId: decoded.orgId,
+        isDeleted: false,
+      });
+
+      if (userCredentials?.isBlocked) {
+        throw new ForbiddenError('Your account has been disabled');
+      }
+
+      // Generate new desktop tokens
+      const newTokens = generateDesktopTokens(
+        this.config.jwtSecret,
+        this.config.scopedJwtSecret,
+        {
+          _id: user._id,
+          orgId: decoded.orgId,
+          email: user.email,
+          fullName: user.fullName,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          accountType: user.accountType,
+        },
+      );
+
+      this.logger.info('[Auth] Desktop token refreshed successfully', {
+        userId: user._id,
+        email: user.email,
+      });
+
+      res.status(200).json({
+        success: true,
+        message: 'Token refreshed successfully',
+        accessToken: newTokens.accessToken,
+        refreshToken: newTokens.refreshToken,
+        expiresIn: newTokens.expiresIn,
+        tokenType: newTokens.tokenType,
+        authSource: newTokens.authSource,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Get desktop user profile
+   *
+   * Returns the authenticated user's profile information.
+   * Used by desktop apps to display user info and verify token validity.
+   *
+   * GET /api/v1/userAccount/desktop/profile
+   * Header: Authorization: Bearer <access_token>
+   */
+  async getDesktopProfile(
+    req: AuthenticatedUserRequest,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> {
+    try {
+      const userId = req.user?.userId;
+      const orgId = req.user?.orgId;
+
+      if (!userId) {
+        throw new UnauthorizedError('User not authenticated');
+      }
+
+      // Get full user data
+      const userResult = await this.iamService.getUserById(
+        userId,
+        iamUserLookupJwtGenerator(userId, orgId, this.config.scopedJwtSecret),
+      );
+
+      if (userResult.statusCode !== 200 || !userResult.data) {
+        throw new NotFoundError('User not found');
+      }
+
+      const user = userResult.data;
+
+      // Get organization info
+      const org = await Org.findOne({ _id: orgId, isDeleted: false });
+
+      this.logger.debug('[Auth] Desktop profile requested', {
+        userId: user._id,
+        email: user.email,
+      });
+
+      res.status(200).json({
+        success: true,
+        user: {
+          id: user._id,
+          email: user.email,
+          fullName: user.fullName || '',
+          firstName: user.firstName || '',
+          lastName: user.lastName || '',
+          orgId: orgId,
+          orgName: org?.shortName || org?.registeredName || '',
+          accountType: user.accountType || 'individual',
+          hasLoggedIn: user.hasLoggedIn || false,
+          createdAt: user.createdAt,
+          updatedAt: user.updatedAt,
+        },
+      });
     } catch (error) {
       next(error);
     }

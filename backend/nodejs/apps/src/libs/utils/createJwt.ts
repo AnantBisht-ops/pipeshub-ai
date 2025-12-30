@@ -1,5 +1,33 @@
 import jwt from 'jsonwebtoken';
 import { TokenScopes } from '../enums/token-scopes.enum';
+import { AuthSource } from '../middlewares/sourceDetection.middleware';
+
+/**
+ * Desktop Token Payload Interface
+ * Extended payload for desktop app authentication
+ */
+export interface DesktopTokenPayload {
+  userId: string;
+  orgId: string;
+  email: string;
+  fullName: string;
+  firstName: string;
+  lastName: string;
+  accountType: string;
+  authSource: AuthSource.DESKTOP;
+}
+
+/**
+ * Desktop Token Response Interface
+ * Complete response structure for desktop authentication
+ */
+export interface DesktopTokenResponse {
+  accessToken: string;
+  refreshToken: string;
+  expiresIn: number;
+  tokenType: 'Bearer';
+  authSource: AuthSource.DESKTOP;
+}
 
 export const mailJwtGenerator = (email: string, scopedJwtSecret: string) => {
   return jwt.sign(
@@ -153,4 +181,240 @@ export const scopedStorageServiceJwtGenerator = (
       expiresIn: '1h',
     },
   );
+};
+
+/**
+ * Generate desktop access token with 30-day expiry
+ *
+ * Desktop tokens have extended expiry for better UX in desktop applications.
+ * They include the authSource claim to identify the token origin.
+ *
+ * @param scopedJwtSecret - JWT secret key
+ * @param userId - User ID
+ * @param orgId - Organization ID
+ * @param email - User email
+ * @param fullName - User full name
+ * @param firstName - User first name
+ * @param lastName - User last name
+ * @param accountType - Account type (individual, business, etc.)
+ * @returns JWT token string
+ */
+export const desktopAuthJwtGenerator = (
+  scopedJwtSecret: string,
+  userId: string,
+  orgId: string,
+  email: string,
+  fullName: string,
+  firstName: string,
+  lastName: string,
+  accountType: string,
+): string => {
+  const payload: DesktopTokenPayload = {
+    userId,
+    orgId,
+    email,
+    fullName,
+    firstName: firstName || '',
+    lastName: lastName || '',
+    accountType: accountType || 'individual',
+    authSource: AuthSource.DESKTOP,
+  };
+
+  // 30 days expiry for desktop tokens
+  // Using '720h' (30 days) as the default - same format as existing refreshTokenJwtGenerator
+  return jwt.sign(payload, scopedJwtSecret, {
+    expiresIn: '720h',
+    issuer: 'pipeshub-desktop',
+  });
+};
+
+/**
+ * Generate desktop refresh token with 90-day expiry
+ *
+ * Desktop refresh tokens have longer expiry than web tokens
+ * to reduce re-authentication frequency for desktop users.
+ *
+ * @param scopedJwtSecret - JWT secret key
+ * @param userId - User ID
+ * @param orgId - Organization ID
+ * @returns JWT refresh token string
+ */
+export const desktopRefreshTokenJwtGenerator = (
+  scopedJwtSecret: string,
+  userId: string,
+  orgId: string,
+): string => {
+  const payload = {
+    userId,
+    orgId,
+    scopes: [TokenScopes.TOKEN_REFRESH],
+    authSource: AuthSource.DESKTOP,
+  };
+
+  // 90 days expiry for desktop refresh tokens
+  // Using '2160h' (90 days) as the default - same format as existing JWT generators
+  return jwt.sign(payload, scopedJwtSecret, {
+    expiresIn: '2160h',
+    issuer: 'pipeshub-desktop',
+  });
+};
+
+/**
+ * User data structure for desktop token generation
+ */
+export interface DesktopUserData {
+  _id: string;
+  orgId: string;
+  email: string;
+  fullName?: string;
+  firstName?: string;
+  lastName?: string;
+  accountType?: string;
+}
+
+/**
+ * Generate complete desktop token response
+ *
+ * Creates both access and refresh tokens for desktop authentication.
+ * Returns a complete response object ready to be sent to the client.
+ *
+ * @param jwtSecret - Main JWT secret for access token
+ * @param scopedJwtSecret - Scoped JWT secret for refresh token
+ * @param user - User data object
+ * @returns Complete desktop token response
+ */
+export const generateDesktopTokens = (
+  jwtSecret: string,
+  scopedJwtSecret: string,
+  user: DesktopUserData,
+): DesktopTokenResponse => {
+  const accessToken = desktopAuthJwtGenerator(
+    jwtSecret,
+    user._id.toString(),
+    user.orgId.toString(),
+    user.email,
+    user.fullName || '',
+    user.firstName || '',
+    user.lastName || '',
+    user.accountType || 'individual',
+  );
+
+  const refreshToken = desktopRefreshTokenJwtGenerator(
+    scopedJwtSecret,
+    user._id.toString(),
+    user.orgId.toString(),
+  );
+
+  // 30 days in seconds
+  const expiresIn = 30 * 24 * 60 * 60;
+
+  return {
+    accessToken,
+    refreshToken,
+    expiresIn,
+    tokenType: 'Bearer',
+    authSource: AuthSource.DESKTOP,
+  };
+};
+
+/**
+ * Organization data for desktop auth callback JWT
+ */
+export interface DesktopCallbackOrganization {
+  _id: string;
+  name: string;
+  slug: string;
+  role: 'admin' | 'member';
+  accountType: 'individual' | 'business';
+}
+
+/**
+ * User data for desktop auth callback JWT
+ */
+export interface DesktopCallbackUser {
+  _id: string;
+  email: string;
+  fullName: string;
+  slug: string;
+}
+
+/**
+ * Complete payload structure for desktop auth callback JWT
+ * This JWT is passed in the callback URL and contains all auth data
+ */
+export interface DesktopCallbackJwtPayload {
+  success: true;
+  isNewUser: boolean;
+  data: {
+    accessToken: string;
+    refreshToken: string;
+    expiresIn: number;
+    user: DesktopCallbackUser;
+    organizations: DesktopCallbackOrganization[];
+    currentOrgId: string;
+  };
+  iat?: number;
+  exp?: number;
+}
+
+/**
+ * Input data for generating desktop callback JWT
+ */
+export interface DesktopCallbackJwtInput {
+  accessToken: string;
+  refreshToken: string;
+  expiresIn: number;
+  user: {
+    _id: string;
+    email: string;
+    fullName: string;
+    slug: string;
+  };
+  organizations: DesktopCallbackOrganization[];
+  currentOrgId: string;
+  isNewUser: boolean;
+}
+
+/**
+ * Generate desktop auth callback JWT
+ *
+ * Creates a JWT containing the complete auth response for desktop apps.
+ * This JWT is passed in the callback URL (openanalyst://auth-callback?token=<JWT>)
+ * and when decoded by the desktop app, provides all necessary auth data.
+ *
+ * JWT expiry is set to 5 minutes - just enough time for the desktop app
+ * to receive and decode it. The actual accessToken inside has 30-day expiry.
+ *
+ * @param jwtSecret - JWT secret for signing
+ * @param input - Complete auth data to include in JWT payload
+ * @returns Signed JWT string
+ */
+export const generateDesktopCallbackJwt = (
+  jwtSecret: string,
+  input: DesktopCallbackJwtInput,
+): string => {
+  const payload: Omit<DesktopCallbackJwtPayload, 'iat' | 'exp'> = {
+    success: true,
+    isNewUser: input.isNewUser,
+    data: {
+      accessToken: input.accessToken,
+      refreshToken: input.refreshToken,
+      expiresIn: input.expiresIn,
+      user: {
+        _id: input.user._id,
+        email: input.user.email,
+        fullName: input.user.fullName,
+        slug: input.user.slug,
+      },
+      organizations: input.organizations,
+      currentOrgId: input.currentOrgId,
+    },
+  };
+
+  // Short expiry - this JWT is only for transfer, not for API auth
+  // The accessToken inside has the actual 30-day expiry
+  return jwt.sign(payload, jwtSecret, {
+    expiresIn: '5m',
+    issuer: 'pipeshub-desktop-callback',
+  });
 };

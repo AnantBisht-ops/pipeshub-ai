@@ -106,8 +106,17 @@ export class ConfigService {
   private async getEncryptedConfig<T>(
     configPath: string,
     fallbackEnvVars: Record<string, any>,
+    forceEnvVars: boolean = false,
   ): Promise<T> {
     try {
+      // If forceEnvVars is true, skip ETCD and use env vars directly
+      // This is useful for development or when ETCD has stale config
+      if (forceEnvVars) {
+        const fallbackConfig = fallbackEnvVars as T;
+        await this.saveConfigToEtcd(configPath, fallbackConfig);
+        return fallbackConfig;
+      }
+
       const encryptedConfig =
         await this.keyValueStoreService.get<string>(configPath);
 
@@ -121,6 +130,17 @@ export class ConfigService {
       return fallbackConfig;
     } catch (error) {
       return fallbackEnvVars as T;
+    }
+  }
+
+  /**
+   * Delete a config from ETCD to force refresh from env vars on next request
+   */
+  public async deleteConfig(configPath: string): Promise<void> {
+    try {
+      await this.keyValueStoreService.delete(configPath);
+    } catch (error) {
+      // Ignore errors - config may not exist
     }
   }
 
@@ -214,30 +234,36 @@ export class ConfigService {
   public async getMongoConfig(): Promise<MongoConfig> {
     const envUri = process.env.MONGO_URI!;
 
-    // Smart ETCD sync: Update cache if .env value changed
-    try {
-      const cached = await this.keyValueStoreService.get<string>(configPaths.db.mongodb);
-      if (cached) {
-        const cachedConfig = JSON.parse(this.encryptionService.decrypt(cached)) as MongoConfig;
+    // Use FORCE_REFRESH_DB_CONFIG=true to force refresh from env vars
+    // This is useful when ETCD has stale config (e.g., switching from Docker to Atlas)
+    const forceRefresh = process.env.FORCE_REFRESH_DB_CONFIG === 'true';
 
-        // If cached URI doesn't match .env, update ETCD
-        if (cachedConfig.uri !== envUri) {
-          console.log('[ConfigService] MongoDB URI changed in .env, updating ETCD...');
-          const newConfig = { uri: envUri, db: MONGO_DB_NAME };
-          await this.saveConfigToEtcd(configPaths.db.mongodb, newConfig);
-          console.log('[ConfigService] ETCD updated with new MongoDB URI');
-          return newConfig;
+    if (!forceRefresh) {
+      // Smart ETCD sync: Update cache if .env value changed
+      try {
+        const cached = await this.keyValueStoreService.get<string>(configPaths.db.mongodb);
+        if (cached) {
+          const cachedConfig = JSON.parse(this.encryptionService.decrypt(cached)) as MongoConfig;
+
+          // If cached URI doesn't match .env, update ETCD
+          if (cachedConfig.uri !== envUri) {
+            console.log('[ConfigService] MongoDB URI changed in .env, updating ETCD...');
+            const newConfig = { uri: envUri, db: MONGO_DB_NAME };
+            await this.saveConfigToEtcd(configPaths.db.mongodb, newConfig);
+            console.log('[ConfigService] ETCD updated with new MongoDB URI');
+            return newConfig;
+          }
         }
+      } catch (error) {
+        console.log('[ConfigService] ETCD sync check failed, will use fallback');
       }
-    } catch (error) {
-      console.log('[ConfigService] ETCD sync check failed, will use fallback');
     }
 
     // Use normal ETCD flow with .env as fallback
     return this.getEncryptedConfig<MongoConfig>(configPaths.db.mongodb, {
       uri: envUri,
       db: MONGO_DB_NAME,
-    });
+    }, forceRefresh);
   }
 
   // Qdrant Configuration
@@ -256,28 +282,33 @@ export class ConfigService {
   public async getArangoConfig(): Promise<ArangoConfig> {
     const envUrl = process.env.ARANGO_URL!;
 
-    // Smart ETCD sync: Update cache if .env value changed
-    try {
-      const cached = await this.keyValueStoreService.get<string>(configPaths.db.arangodb);
-      if (cached) {
-        const cachedConfig = JSON.parse(this.encryptionService.decrypt(cached)) as ArangoConfig;
+    // Use FORCE_REFRESH_DB_CONFIG=true to force refresh from env vars
+    const forceRefresh = process.env.FORCE_REFRESH_DB_CONFIG === 'true';
 
-        // If cached URL doesn't match .env, update ETCD
-        if (cachedConfig.url !== envUrl) {
-          console.log('[ConfigService] ArangoDB URL changed in .env, updating ETCD...');
-          const newConfig = {
-            url: envUrl,
-            db: ARANGO_DB_NAME,
-            username: process.env.ARANGO_USERNAME!,
-            password: process.env.ARANGO_PASSWORD!,
-          };
-          await this.saveConfigToEtcd(configPaths.db.arangodb, newConfig);
-          console.log('[ConfigService] ETCD updated with new ArangoDB URL');
-          return newConfig;
+    if (!forceRefresh) {
+      // Smart ETCD sync: Update cache if .env value changed
+      try {
+        const cached = await this.keyValueStoreService.get<string>(configPaths.db.arangodb);
+        if (cached) {
+          const cachedConfig = JSON.parse(this.encryptionService.decrypt(cached)) as ArangoConfig;
+
+          // If cached URL doesn't match .env, update ETCD
+          if (cachedConfig.url !== envUrl) {
+            console.log('[ConfigService] ArangoDB URL changed in .env, updating ETCD...');
+            const newConfig = {
+              url: envUrl,
+              db: ARANGO_DB_NAME,
+              username: process.env.ARANGO_USERNAME!,
+              password: process.env.ARANGO_PASSWORD!,
+            };
+            await this.saveConfigToEtcd(configPaths.db.arangodb, newConfig);
+            console.log('[ConfigService] ETCD updated with new ArangoDB URL');
+            return newConfig;
+          }
         }
+      } catch (error) {
+        console.log('[ConfigService] ETCD sync check failed, will use fallback');
       }
-    } catch (error) {
-      console.log('[ConfigService] ETCD sync check failed, will use fallback');
     }
 
     // Use normal ETCD flow with .env as fallback
@@ -286,7 +317,7 @@ export class ConfigService {
       db: ARANGO_DB_NAME,
       username: process.env.ARANGO_USERNAME!,
       password: process.env.ARANGO_PASSWORD!,
-    });
+    }, forceRefresh);
   }
 
   // ETCD Configuration

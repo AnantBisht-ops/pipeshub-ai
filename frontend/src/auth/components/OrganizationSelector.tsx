@@ -138,17 +138,24 @@ export const OrganizationSelector: React.FC<OrganizationSelectorProps> = ({
           <>
             <List sx={{ pt: 0 }}>
               {organizations.map((orgData) => {
-                const org = orgData.organization;
-                const isSelected = selectedOrgId === org._id;
+                // Handle both nested { organization: {...}, role: ... } and flat structures
+                const org = orgData?.organization || orgData;
+                const orgId = org?._id || (orgData as any)?._id;
+                const role = orgData?.role || (orgData as any)?.role;
+
+                // Skip invalid entries
+                if (!orgId || !org) return null;
+
+                const isSelected = selectedOrgId === orgId;
 
                 return (
                   <ListItem
-                    key={org._id}
+                    key={orgId}
                     disablePadding
                     sx={{ mb: 1.5 }}
                   >
                     <ListItemButton
-                      onClick={() => handleSelectOrganization(org._id)}
+                      onClick={() => handleSelectOrganization(orgId)}
                       disabled={selecting}
                       selected={isSelected}
                       sx={{
@@ -217,9 +224,9 @@ export const OrganizationSelector: React.FC<OrganizationSelectorProps> = ({
                             </Typography>
                             <Stack direction="row" spacing={1} alignItems="center">
                               <Chip
-                                label={orgData.role}
+                                label={role}
                                 size="small"
-                                color={getRoleColor(orgData.role) as any}
+                                color={getRoleColor(role) as any}
                                 sx={{
                                   height: 20,
                                   fontSize: 11,

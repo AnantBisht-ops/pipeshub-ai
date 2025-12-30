@@ -29,7 +29,7 @@ import { Iconify } from 'src/components/iconify';
 import { Form, Field } from 'src/components/hook-form';
 
 import { useAuthContext } from 'src/auth/hooks';
-import { signInWithPassword } from 'src/auth/context/jwt';
+import { signInWithPassword, isDesktopAuthResponse } from 'src/auth/context/jwt';
 
 // Schema for sign in
 const SignInSchema = zod.object({
@@ -108,7 +108,20 @@ export default function PasswordSignIn({
         password: data.password,
       });
 
-      // Check the response
+      // Check for desktop auth response - redirect to custom protocol
+      if (isDesktopAuthResponse(response)) {
+        console.log('[Auth] Desktop auth via password, redirecting to:', response.callbackUrl);
+        if (onNextStep) {
+          onNextStep(response as any);
+        } else {
+          setTimeout(() => {
+            window.location.href = response.callbackUrl;
+          }, 100);
+        }
+        return;
+      }
+
+      // Check the response for standard flow
       if (response) {
         if (response.nextStep && response.allowedMethods && response.allowedMethods.length > 0) {
           // We need to go to the next authentication step

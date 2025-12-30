@@ -23,8 +23,12 @@ export function AuthSplitLayout({ sx, section, children }: AuthSplitLayoutProps)
     <LayoutSection
       headerSection={null} // Removed header
       footerSection={null}
-      cssVars={{ '--layout-auth-content-width': '800px' }}
-      sx={sx}
+      cssVars={{ '--layout-auth-content-width': '480px' }}
+      sx={{
+        backgroundColor: '#1a1a1a', // Dark charcoal background for OpenAnalyst
+        minHeight: '100vh',
+        ...sx,
+      }}
     >
       <Main layoutQuery={layoutQuery}>
         {/* Section for illustration/info */}
@@ -36,7 +40,12 @@ export function AuthSplitLayout({ sx, section, children }: AuthSplitLayoutProps)
         />
 
         {/* Content area (form) */}
-        <Content layoutQuery={layoutQuery}>
+        <Content
+          layoutQuery={layoutQuery}
+          sx={{
+            backgroundColor: '#1a1a1a', // Consistent dark background
+          }}
+        >
           {children}
         </Content>
       </Main>

@@ -41,10 +41,42 @@ export function ServicesHealthProvider({ children }: { children: React.ReactNode
   const checkHealth = useCallback(async () => {
     try {
       console.log('Checking services health...');
-      const resp = await fetch(`${CONFIG.backendUrl}/api/v1/health/services`, { credentials: 'include' });
+
+      // Check if backend URL is configured
+      if (!CONFIG.backendUrl) {
+        console.warn('Backend URL not configured. Running in frontend-only mode.');
+        setHealthy(null);
+        setServices(null);
+        setLoading(false);
+        // Dismiss any existing toast
+        if (toastIdRef.current != null) {
+          toast.dismiss(toastIdRef.current);
+          toastIdRef.current = null;
+        }
+        // Stop polling
+        if (pollIntervalRef.current) {
+          clearInterval(pollIntervalRef.current);
+          pollIntervalRef.current = null;
+        }
+        return;
+      }
+
+      const resp = await fetch(`${CONFIG.backendUrl}/api/v1/health/services`, {
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json',
+        }
+      });
+
+      // Check if response is JSON
+      const contentType = resp.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Backend returned non-JSON response. Is the backend running?');
+      }
+
       const data = await resp.json();
       const ok = resp.ok && data?.status === 'healthy';
-      
+
       setHealthy(ok);
       setServices(data?.services ?? null);
       setLoading(false);
@@ -71,11 +103,23 @@ export function ServicesHealthProvider({ children }: { children: React.ReactNode
       setHealthy(false);
       setServices(null);
       setLoading(false);
-      
-      // Show error toast and keep polling
-      if (toastIdRef.current != null) {
-        toast.error('Failed to connect to services. Retrying...', { id: toastIdRef.current });
-        toastIdRef.current = null;
+
+      // Show error toast only once, not repeatedly
+      if (toastIdRef.current == null) {
+        toastIdRef.current = toast.error('Backend not available. Running in frontend-only mode.', {
+          duration: 5000,
+          description: 'Some features may not work without the backend server.'
+        });
+        // Clear the ref after toast duration
+        setTimeout(() => {
+          toastIdRef.current = null;
+        }, 5000);
+      }
+
+      // Stop polling after showing error
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
       }
     }
   }, []);

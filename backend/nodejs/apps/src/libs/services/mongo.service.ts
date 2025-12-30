@@ -34,9 +34,10 @@ export class MongoService {
     try {
       const { uri, db, options } = this.config;
 
-      // Debug logging
+      // Log the MongoDB URI being used (hide password for security)
+      const sanitizedUri = uri.replace(/:([^:@]+)@/, ':****@');
       logger.info(`[MongoDB] Connecting to database...`);
-      logger.info(`[MongoDB] URI: ${uri.substring(0, 60)}...`);
+      logger.info(`[MongoDB] URI: ${sanitizedUri}`);
       logger.info(`[MongoDB] Database: ${db}`);
 
       const defaultOptions = {

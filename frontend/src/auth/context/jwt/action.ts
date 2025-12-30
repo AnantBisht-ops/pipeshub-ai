@@ -73,6 +73,53 @@ export interface AuthResponse {
   message?: string;
 }
 
+// Desktop authentication response interface
+export interface DesktopAuthResponse {
+  success: true;
+  authSource: 'desktop';
+  accessToken: string;
+  refreshToken: string;
+  callbackUrl: string;
+  expiresIn: number;
+  tokenType: 'Bearer';
+  user: {
+    id: string;
+    email: string;
+    fullName: string;
+    firstName: string;
+    lastName: string;
+    orgId: string;
+  };
+}
+
+/**
+ * Check if response is a desktop authentication response
+ */
+export const isDesktopAuthResponse = (response: any): response is DesktopAuthResponse => {
+  return response && response.authSource === 'desktop' && response.callbackUrl;
+};
+
+/**
+ * Check if current request is from desktop auth flow
+ * Detects ?source=desktop in URL
+ */
+export const isDesktopAuthSource = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  const urlParams = new URLSearchParams(window.location.search);
+  return urlParams.get('source') === 'desktop';
+};
+
+/**
+ * Get the authenticate URL with source parameter if desktop
+ */
+const getAuthenticateUrl = (): string => {
+  const baseUrl = `${CONFIG.authUrl}/api/v1/userAccount/authenticate`;
+  if (isDesktopAuthSource()) {
+    return `${baseUrl}?source=desktop`;
+  }
+  return baseUrl;
+};
+
 interface orgExistsReponse {
   exists: boolean;
 }
@@ -134,7 +181,7 @@ export const sendOtp = async ({ email }: GetOtpParams): Promise<void> => {
  * Sign in with OTP
  *************************************** */
 
-export const VerifyOtp = async ({ email, otp }: SignInOtpParams): Promise<AuthResponse> => {
+export const VerifyOtp = async ({ email, otp }: SignInOtpParams): Promise<AuthResponse | DesktopAuthResponse> => {
   try {
     const requestBody = {
       email,
@@ -142,16 +189,21 @@ export const VerifyOtp = async ({ email, otp }: SignInOtpParams): Promise<AuthRe
       credentials: { otp },
     };
 
-    const res = await axios.post(`${CONFIG.authUrl}/api/v1/userAccount/authenticate`, requestBody);
+    const res = await axios.post(getAuthenticateUrl(), requestBody);
 
-    const response = res.data as AuthResponse;
+    const response = res.data;
 
-    // Check if this is the final step with tokens
+    // Check for desktop response - don't store tokens locally
+    if (isDesktopAuthResponse(response)) {
+      return response;
+    }
+
+    // Check if this is the final step with tokens (web flow)
     if (response.accessToken && response.refreshToken) {
       setSession(response.accessToken, response.refreshToken);
     }
 
-    return response;
+    return response as AuthResponse;
   } catch (error) {
     throw new Error('Error during OTP verification:', error);
   }
@@ -189,7 +241,7 @@ export const authInitConfig = async (email: string): Promise<AuthInitResponse> =
 export const signInWithPassword = async ({
   email,
   password,
-}: SignInParams): Promise<AuthResponse> => {
+}: SignInParams): Promise<AuthResponse | DesktopAuthResponse> => {
   try {
     const requestBody = {
       email,
@@ -197,16 +249,21 @@ export const signInWithPassword = async ({
       credentials: { password },
     };
 
-    const res = await axios.post(`${CONFIG.authUrl}/api/v1/userAccount/authenticate`, requestBody);
+    const res = await axios.post(getAuthenticateUrl(), requestBody);
 
-    const response = res.data as AuthResponse;
+    const response = res.data;
 
-    // Check if this is the final step with tokens
+    // Check for desktop response - don't store tokens locally
+    if (isDesktopAuthResponse(response)) {
+      return response;
+    }
+
+    // Check if this is the final step with tokens (web flow)
     if (response.accessToken && response.refreshToken) {
       setSession(response.accessToken, response.refreshToken);
     }
 
-    return response;
+    return response as AuthResponse;
   } catch (error) {
     throw new Error('Error during password authentication:', error);
   }
@@ -220,21 +277,26 @@ export const SignInWithGoogle = async ({
   credential,
 }: {
   credential: string;
-}): Promise<AuthResponse> => {
+}): Promise<AuthResponse | DesktopAuthResponse> => {
   try {
-    const res = await axios.post(`${CONFIG.authUrl}/api/v1/userAccount/authenticate`, {
+    const res = await axios.post(getAuthenticateUrl(), {
       credentials: credential,
       method: 'google',
     });
 
-    const response = res.data as AuthResponse;
+    const response = res.data;
 
-    // Check if this is the final step with tokens
+    // Check for desktop response - don't store tokens locally
+    if (isDesktopAuthResponse(response)) {
+      return response;
+    }
+
+    // Check if this is the final step with tokens (web flow)
     if (response.accessToken && response.refreshToken) {
       setSession(response.accessToken, response.refreshToken);
     }
 
-    return response;
+    return response as AuthResponse;
   } catch (error) {
     throw new Error('Error during sign in with Google:', error);
   }
@@ -245,23 +307,28 @@ interface AzureCredientals {
   idToken: string;
 }
 
-export const SignInWithAzureAd = async (credential: AzureCredientals): Promise<AuthResponse> => {
+export const SignInWithAzureAd = async (credential: AzureCredientals): Promise<AuthResponse | DesktopAuthResponse> => {
   try {
-    const res = await axios.post(`${CONFIG.authUrl}/api/v1/userAccount/authenticate`, {
+    const res = await axios.post(getAuthenticateUrl(), {
       credentials: credential,
       method: 'azureAd',
     });
 
-    const response = res.data as AuthResponse;
+    const response = res.data;
 
-    // Check if this is the final step with tokens
+    // Check for desktop response - don't store tokens locally
+    if (isDesktopAuthResponse(response)) {
+      return response;
+    }
+
+    // Check if this is the final step with tokens (web flow)
     if (response.accessToken && response.refreshToken) {
       setSession(response.accessToken, response.refreshToken);
     }
 
-    return response;
+    return response as AuthResponse;
   } catch (error) {
-    throw new Error('Error during sign in with Google:', error);
+    throw new Error('Error during sign in with Azure AD:', error);
   }
 };
 
@@ -272,23 +339,28 @@ interface MicrosoftCredientals {
 
 export const SignInWithMicrosoft = async (
   credential: MicrosoftCredientals
-): Promise<AuthResponse> => {
+): Promise<AuthResponse | DesktopAuthResponse> => {
   try {
-    const res = await axios.post(`${CONFIG.authUrl}/api/v1/userAccount/authenticate`, {
+    const res = await axios.post(getAuthenticateUrl(), {
       credentials: credential,
       method: 'microsoft',
     });
 
-    const response = res.data as AuthResponse;
+    const response = res.data;
 
-    // Check if this is the final step with tokens
+    // Check for desktop response - don't store tokens locally
+    if (isDesktopAuthResponse(response)) {
+      return response;
+    }
+
+    // Check if this is the final step with tokens (web flow)
     if (response.accessToken && response.refreshToken) {
       setSession(response.accessToken, response.refreshToken);
     }
 
-    return response;
+    return response as AuthResponse;
   } catch (error) {
-    throw new Error('Error during sign in with Google:', error);
+    throw new Error('Error during sign in with Microsoft:', error);
   }
 };
 
@@ -297,21 +369,26 @@ interface OAuthCredentials {
   idToken?: string;
 }
 
-export const SignInWithOAuth = async (credential: OAuthCredentials): Promise<AuthResponse> => {
+export const SignInWithOAuth = async (credential: OAuthCredentials): Promise<AuthResponse | DesktopAuthResponse> => {
   try {
-    const res = await axios.post(`${CONFIG.authUrl}/api/v1/userAccount/authenticate`, {
+    const res = await axios.post(getAuthenticateUrl(), {
       credentials: credential,
       method: 'oauth',
     });
 
-    const response = res.data as AuthResponse;
+    const response = res.data;
 
-    // Check if this is the final step with tokens
+    // Check for desktop response - don't store tokens locally
+    if (isDesktopAuthResponse(response)) {
+      return response;
+    }
+
+    // Check if this is the final step with tokens (web flow)
     if (response.accessToken && response.refreshToken) {
       setSession(response.accessToken, response.refreshToken);
     }
 
-    return response;
+    return response as AuthResponse;
   } catch (error) {
     throw new Error('Error during OAuth authentication:', error);
   }
