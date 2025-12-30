@@ -308,6 +308,25 @@ export function createUserRouter(container: Container) {
     },
   );
 
+  // Resync current user to ArangoDB (useful when user is missing from ArangoDB)
+  router.post(
+    '/resync',
+    authMiddleware.authenticate,
+    metricsMiddleware(container),
+    async (
+      req: AuthenticatedUserRequest,
+      res: Response,
+      next: NextFunction,
+    ) => {
+      try {
+        const userController = container.get<UserController>('UserController');
+        await userController.resyncCurrentUser(req, res, next);
+      } catch (error) {
+        next(error);
+      }
+    },
+  );
+
   router.patch(
     '/:id/fullname',
     authMiddleware.authenticate,

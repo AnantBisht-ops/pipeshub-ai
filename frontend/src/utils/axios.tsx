@@ -59,10 +59,29 @@ interface ErrorProviderProps {
 // Create axios instance with config
 const axiosInstance = axios.create({ baseURL: CONFIG.backendUrl });
 
+// Flag to track if resync is in progress (to prevent infinite loops)
+let isResyncingUser = false;
+
+// Function to resync user to ArangoDB
+async function resyncUserToArangoDB(): Promise<boolean> {
+  if (isResyncingUser) return false;
+  isResyncingUser = true;
+  try {
+    await axiosInstance.post('/api/v1/users/resync');
+    console.info('User resynced to ArangoDB successfully');
+    return true;
+  } catch (e) {
+    console.error('Failed to resync user:', e);
+    return false;
+  } finally {
+    isResyncingUser = false;
+  }
+}
+
 // Enhanced error handling in interceptor
 axiosInstance.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
     // Default error structure
     const processedError: ProcessedError = {
       type: ErrorType.UNKNOWN_ERROR,
@@ -163,6 +182,30 @@ axiosInstance.interceptors.response.use(
           processedError.type = ErrorType.NOT_FOUND_ERROR;
           processedError.message =
             processedError.message || 'The requested resource was not found.';
+
+          // Check if this is a "User not found for user_id" error from Python backend
+          // This happens when user exists in MongoDB but not in ArangoDB
+          const errorMessage = processedError.message || '';
+          const errorReason = (error.response.data as any)?.reason || '';
+          if (
+            errorMessage.includes('User not found for user_id') ||
+            errorReason.includes('User not found for user_id')
+          ) {
+            // Attempt to resync user and retry the request
+            const resynced = await resyncUserToArangoDB();
+            if (resynced && error.config) {
+              // Wait a bit for Kafka to process the event
+              await new Promise((resolve) => setTimeout(resolve, 1000));
+              // Retry the original request
+              try {
+                const retryResponse = await axiosInstance.request(error.config);
+                return retryResponse;
+              } catch (retryError) {
+                // If retry fails, continue with original error handling
+                console.error('Retry after resync failed:', retryError);
+              }
+            }
+          }
         } else if (error.response.status === 400) {
           processedError.type = ErrorType.VALIDATION_ERROR;
           processedError.message =
@@ -174,7 +217,7 @@ axiosInstance.interceptors.response.use(
     else if (error instanceof Error) {
       processedError.message = error.message;
     }
-    
+
 
     // Try to show error in snackbar if ErrorContext is available
     try {
