@@ -114,14 +114,7 @@
     // "esModuleInterop": true
   },
   "include": [
-    "src/**/*",
-    "../../libs/enums",
-    "../../libs/errors",
-    "../../libs/middlewares",
-    "../../libs/services/encryption.service.ts",
-    "../../libs/services/logger.service.ts",
-    "../../libs/services/mongo.service.ts",
-    "../../libs/services/redis.service.ts"
+    "src/**/*"
   ],
   "exclude": ["node_modules"]
 }

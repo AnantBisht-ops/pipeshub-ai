@@ -7,7 +7,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import moment from 'moment-timezone';
-import { SCHEDULE_CONSTANTS } from '../types/cronScheduler.types';
+// Note: SCHEDULE_CONSTANTS import removed as it's not used in this file
 
 /**
  * Main schedule creation/update schema
@@ -469,7 +469,7 @@ export const validateIdempotencyKey = (
  * Sanitize response data to prevent XSS
  */
 export const sanitizeResponse = (
-  req: Request,
+  _req: Request,
   res: Response,
   next: NextFunction
 ): void => {

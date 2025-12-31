@@ -1364,7 +1364,7 @@ export class UserController {
         timestamp: Date.now(),
         payload: {
           orgId: orgId.toString(),
-          userId: user._id.toString(),
+          userId: (user as any)._id.toString(),
           fullName: user.fullName,
           firstName: user.firstName,
           lastName: user.lastName,

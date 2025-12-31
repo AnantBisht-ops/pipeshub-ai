@@ -23,7 +23,7 @@ declare global {
  * Placeholder authentication middleware
  * Replace this with your actual authentication logic
  */
-export const authMiddleware = (req: Request, res: Response, next: NextFunction) => {
+export const authMiddleware = (req: Request, _res: Response, next: NextFunction) => {
   // Placeholder: In production, verify JWT token or session
   // For now, setting a default user
   req.user = {

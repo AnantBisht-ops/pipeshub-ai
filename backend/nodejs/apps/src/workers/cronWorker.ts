@@ -42,8 +42,8 @@ async function startWorker(): Promise<void> {
     container.bind<CronWorkerService>('CronWorkerService')
       .to(CronWorkerService).inSingletonScope();
 
-    // Start the worker
-    const workerService = container.get<CronWorkerService>('CronWorkerService');
+    // Start the worker - service starts automatically on instantiation
+    container.get<CronWorkerService>('CronWorkerService');
     logger.info('Cron Worker started successfully');
 
     // Handle graceful shutdown

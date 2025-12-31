@@ -1,26 +1,28 @@
 version: '3.8'
 
 services:
-  # Build base image with all dependencies (shared by all services)
-  python-base:
+  # Connector Service - Development Mode with hot reload
+  connector-service-dev:
     build:
       context: ../../backend/python
-      dockerfile: Dockerfile.services
-    image: pipeshub-python:latest
-    command: echo "Base image built successfully"
-
-  # Connector Service - Port 8088
-  connector-service:
-    image: pipeshub-python:latest
-    container_name: connector-service
-    depends_on:
-      - python-base
+      dockerfile: Dockerfile.dev
+    container_name: connector-service-dev
     ports:
       - "8088:8088"
+    volumes:
+      # Mount source code for hot-reloading
+      - ../../backend/python:/app
+      # Persist pip cache to speed up rebuilds
+      - pip-cache:/root/.cache/pip
     environment:
       - SERVICE_NAME=connector
       - CONNECTOR_SERVICE_PORT=8088
-      # Infrastructure connections (using your .env values)
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+      # Development mode with auto-reload
+      - RELOAD=true
+      - LOG_LEVEL=debug
+      # Infrastructure connections (using host.docker.internal for local services)
       - ETCD_URL=http://host.docker.internal:2379
       - ETCD_HOST=host.docker.internal
       - ARANGO_URL=http://host.docker.internal:8529
@@ -40,24 +42,39 @@ services:
       - QDRANT_PORT=6333
       - OLLAMA_API_URL=http://host.docker.internal:11434
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-    command: python -m app.connectors_main
+    # Use uvicorn with reload for development
+    command: >
+      sh -c "
+      echo 'Starting Connector Service in development mode...' &&
+      python -m uvicorn app.connectors_main:app --host 0.0.0.0 --port 8088 --reload --log-level debug
+      "
     restart: unless-stopped
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    stdin_open: true
+    tty: true
 
-  # Indexing Service - Port 8091
-  indexing-service:
-    image: pipeshub-python:latest
-    container_name: indexing-service
+  # Indexing Service - Development Mode
+  indexing-service-dev:
+    build:
+      context: ../../backend/python
+      dockerfile: Dockerfile.dev
+    container_name: indexing-service-dev
     depends_on:
-      - python-base
-      - connector-service
+      - connector-service-dev
     ports:
       - "8091:8091"
+    volumes:
+      - ../../backend/python:/app
+      - pip-cache:/root/.cache/pip
     environment:
       - SERVICE_NAME=indexing
       - INDEXING_SERVICE_PORT=8091
-      - CONNECTOR_BACKEND=http://connector-service:8088
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+      - RELOAD=true
+      - LOG_LEVEL=debug
+      - CONNECTOR_BACKEND=http://connector-service-dev:8088
       # Same infrastructure connections
       - ETCD_URL=http://host.docker.internal:2379
       - ETCD_HOST=host.docker.internal
@@ -78,25 +95,39 @@ services:
       - QDRANT_PORT=6333
       - OLLAMA_API_URL=http://host.docker.internal:11434
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-    command: python -m app.indexing_main
+    command: >
+      sh -c "
+      echo 'Starting Indexing Service in development mode...' &&
+      python -m uvicorn app.indexing_main:app --host 0.0.0.0 --port 8091 --reload --log-level debug
+      "
     restart: unless-stopped
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    stdin_open: true
+    tty: true
 
-  # Query/AI Service - Port 8000
-  query-service:
-    image: pipeshub-python:latest
-    container_name: query-service
+  # Query/AI Service - Development Mode
+  query-service-dev:
+    build:
+      context: ../../backend/python
+      dockerfile: Dockerfile.dev
+    container_name: query-service-dev
     depends_on:
-      - python-base
-      - connector-service
+      - connector-service-dev
     ports:
       - "8000:8000"
+    volumes:
+      - ../../backend/python:/app
+      - pip-cache:/root/.cache/pip
     environment:
       - SERVICE_NAME=query
       - QUERY_SERVICE_PORT=8000
-      - CONNECTOR_BACKEND=http://connector-service:8088
-      - INDEXING_BACKEND=http://indexing-service:8091
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+      - RELOAD=true
+      - LOG_LEVEL=debug
+      - CONNECTOR_BACKEND=http://connector-service-dev:8088
+      - INDEXING_BACKEND=http://indexing-service-dev:8091
       # Same infrastructure connections
       - ETCD_URL=http://host.docker.internal:2379
       - ETCD_HOST=host.docker.internal
@@ -117,7 +148,17 @@ services:
       - QDRANT_PORT=6333
       - OLLAMA_API_URL=http://host.docker.internal:11434
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-    command: python -m app.query_main
+    command: >
+      sh -c "
+      echo 'Starting Query Service in development mode...' &&
+      python -m uvicorn app.query_main:app --host 0.0.0.0 --port 8000 --reload --log-level debug
+      "
     restart: unless-stopped
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    stdin_open: true
+    tty: true
+
+volumes:
+  pip-cache:
+    driver: local
