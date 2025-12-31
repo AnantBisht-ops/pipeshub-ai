@@ -63,6 +63,23 @@ RUN npm run build
 # Stage 4: Frontend build
 FROM base AS frontend-build
 WORKDIR /app/frontend
+
+# Build arguments for VITE environment variables (these become compile-time constants)
+ARG VITE_BACKEND_URL=""
+ARG VITE_AUTH_URL=""
+ARG VITE_IAM_URL=""
+ARG VITE_NOTIFICATION_BACKEND_URL=""
+ARG VITE_AI_BACKEND=""
+ARG VITE_ASSETS_DIR=""
+
+# Set as environment variables for the build process
+ENV VITE_BACKEND_URL=$VITE_BACKEND_URL
+ENV VITE_AUTH_URL=$VITE_AUTH_URL
+ENV VITE_IAM_URL=$VITE_IAM_URL
+ENV VITE_NOTIFICATION_BACKEND_URL=$VITE_NOTIFICATION_BACKEND_URL
+ENV VITE_AI_BACKEND=$VITE_AI_BACKEND
+ENV VITE_ASSETS_DIR=$VITE_ASSETS_DIR
+
 RUN mkdir -p packages
 COPY frontend/package*.json ./
 COPY frontend/packages ./packages/
